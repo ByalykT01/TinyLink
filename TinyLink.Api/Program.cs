@@ -3,6 +3,8 @@ using TinyLink.Api.Extensions;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddDocumentation();
+builder.AddAppOptions();
+builder.AddPersistence();
 
 var app = builder.Build();
 

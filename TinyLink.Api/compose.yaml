@@ -1,0 +1,44 @@
+services:
+  tinylink:
+    image: tinylink
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+        restart: true
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    networks:
+      - backend
+
+  postgres:
+    image: postgres:latest
+    container_name: tinylink_dev 
+    volumes:
+      - ./seed.sql:/docker-entrypoint-initdb.d/seed.sql
+      - data_sql:/var/lib/postgresql
+    env_file:
+      - .env
+    ports:
+      - "5555:5432"
+    networks:
+      - backend
+    healthcheck:
+      test:
+        ["CMD-SHELL", "pg_isready -U user -d tinylink_dev -h localhost -p 5432"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  data_sql:
+
