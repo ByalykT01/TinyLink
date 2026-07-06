@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="TinyLink.Api/TinyLink.Api.csproj" />
+  <Project Path="TinyLink.Tests/TinyLink.Tests.csproj" />
+</Solution>
