@@ -1,0 +1,4 @@
+services:
+  tinylink:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development

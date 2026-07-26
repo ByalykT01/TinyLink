@@ -13,6 +13,12 @@ public static class PersistenceExtensions
         builder.Services.AddDbContext<ApplicationDbContext>(options =>
             options.UseNpgsql(database.ToConnectionString));
 
+        builder.Services.AddHealthChecks()
+            .AddNpgSql(
+                database.ToConnectionString,
+                name: "postgres",
+                timeout: TimeSpan.FromSeconds(3));
+
         return builder;
     }
 
