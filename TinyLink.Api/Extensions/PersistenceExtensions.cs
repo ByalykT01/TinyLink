@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TinyLink.Api.Data;
 using TinyLink.Api.Options;
 
 namespace TinyLink.Api.Extensions;

@@ -1,5 +1,3 @@
-using TinyLink.Api.Services;
-
 namespace TinyLink.Api.Extensions;
 
 public static class ServicesExtensions
@@ -8,7 +6,8 @@ public static class ServicesExtensions
     {
         public IHostApplicationBuilder AddServices()
         {
-            builder.Services.AddScoped<ShortenService>();
+
+            builder.Services.AddSingleton(TimeProvider.System);
 
             builder.Services.AddProblemDetails();
             builder.Services.AddControllers();
