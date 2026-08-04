@@ -22,7 +22,7 @@ public static class RedirectToTarget
                 CancellationToken ct)
     {
         if (!Base62.TryDecode(code, out var permuted))
-            return Gone410(http);
+            return NotFound404(http);
 
         //use cipher there
         var id = permuted;
@@ -34,7 +34,7 @@ public static class RedirectToTarget
             .FirstOrDefaultAsync(ct);
 
         if (link is null || link.ShortCode != code)
-            return Gone410(http);
+            return NotFound404(http);
 
         if (link.DeletedAt is not null || link.ExpiresAt <= clock.GetUtcNow())
         {
@@ -46,7 +46,7 @@ public static class RedirectToTarget
         return TypedResults.Redirect(link.TargetUrl, permanent: false, preserveMethod: false);
     }
 
-    private static NotFound Gone410(HttpContext http)
+    private static NotFound NotFound404(HttpContext http)
     {
         http.Response.Headers.CacheControl = "no-store";
         return TypedResults.NotFound();
