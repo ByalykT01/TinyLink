@@ -1,3 +1,5 @@
+using TinyLink.Api.Data;
+
 namespace TinyLink.Api.Extensions;
 
 public static class ServicesExtensions
@@ -8,6 +10,7 @@ public static class ServicesExtensions
         {
 
             builder.Services.AddSingleton(TimeProvider.System);
+            builder.Services.AddScoped<ShortCodeAllocator>();
 
             builder.Services.AddProblemDetails();
             builder.Services.AddControllers();

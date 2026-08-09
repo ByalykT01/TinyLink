@@ -12,15 +12,16 @@ public static class Base62
 
     public static string Encode(long value)
     {
-        if (value < 0 || value >= Domain)
-            throw new ArgumentOutOfRangeException(nameof(value), "Value is outside the code domain.");
+
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(value, Domain);
 
         return string.Create(CodeLength, value, static (span, v) =>
                 {
                     for (var i = CodeLength - 1; i >= 0; i--)
                     {
-                        span[i] = Base62Alphabet[(int)(v % 62)];
-                        v /= 62;
+                        (v, var digit) = Math.DivRem(v, 62);
+                        span[i] = Base62Alphabet[(int)digit];
                     }
                 });
     }

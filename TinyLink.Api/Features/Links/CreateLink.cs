@@ -7,6 +7,7 @@ namespace TinyLink.Api.Features.Links;
 
 public static class CreateLink
 {
+    private static readonly TimeSpan DefaultLifetime = TimeSpan.FromDays(7);
 
     public sealed record Request(string Url, DateTimeOffset? ExpiresAt);
     public sealed record Response(string ShortCode, DateTimeOffset? ExpiresAt);
@@ -20,19 +21,22 @@ public static class CreateLink
         var now = clock.GetUtcNow();
         var errors = new Dictionary<string, string[]>();
 
+        var requestedExpiry = request.ExpiresAt?.ToUniversalTime();
+
+
+        if (requestedExpiry is { } expiry && expiry <= now)
+            errors["expiresAt"] = ["Must be in the future."];
+
         if (!UrlPolicy.TryNormalize(request.Url, out var target, out var urlError))
         {
             errors["url"] = [urlError];
             return TypedResults.ValidationProblem(errors);
         }
 
-        if (request.ExpiresAt is { } requested && requested <= now)
-            errors["ExpiresAt"] = ["Must be in the future."];
-
-        var expirationTime = request.ExpiresAt ?? clock.GetUtcNow().AddDays(7);
-
         if (errors.Count > 0)
             return TypedResults.ValidationProblem(errors);
+
+        var expirationTime = requestedExpiry ?? now.Add(DefaultLifetime);
 
         var id = new Random().NextInt64(Base62.Domain);
         var code = Base62.Encode(id);
