@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -7,6 +7,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <NoWarn>$(NoWarn);CS1573</NoWarn>
+    <UserSecretsId>e541d683-a277-4528-8801-c76a95e6099f</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,7 +19,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.OpenApi" Version="2.0.1" />
+    <PackageReference Include="Microsoft.OpenApi" Version="2.11.0" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
   </ItemGroup>
 

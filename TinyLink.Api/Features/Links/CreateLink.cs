@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using TinyLink.Api.Data;
 using TinyLink.Api.Models;
-using TinyLink.Api.ShortCodes;
 
 namespace TinyLink.Api.Features.Links;
 
@@ -15,6 +14,7 @@ public static class CreateLink
     public static async Task<Results<Created<Response>, ValidationProblem>> Handle(
                 Request request,
                 ApplicationDbContext dbContext,
+                ShortCodeAllocator codes,
                 TimeProvider clock,
                 CancellationToken ct)
     {
@@ -38,8 +38,7 @@ public static class CreateLink
 
         var expirationTime = requestedExpiry ?? now.Add(DefaultLifetime);
 
-        var id = new Random().NextInt64(Base62.Domain);
-        var code = Base62.Encode(id);
+        var (id, code) = await codes.NextAsync(ct);
 
         dbContext.Links.Add(new Link
         {

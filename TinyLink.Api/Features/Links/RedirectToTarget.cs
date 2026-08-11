@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using TinyLink.Api.Data;
-using TinyLink.Api.ShortCodes;
 
 namespace TinyLink.Api.Features.Links;
 
@@ -21,19 +20,13 @@ public static class RedirectToTarget
                 TimeProvider clock,
                 CancellationToken ct)
     {
-        if (!Base62.TryDecode(code, out var permuted))
-            return NotFound404(http);
-
-        //use cipher there
-        var id = permuted;
-
         var link = await dbContext.Links
             .AsNoTracking()
-            .Where(l => l.Id == id)
-            .Select(l => new { l.ShortCode, l.TargetUrl, l.ExpiresAt, l.DeletedAt })
+            .Where(l => l.ShortCode == code)
+            .Select(l => new { l.TargetUrl, l.ExpiresAt, l.DeletedAt })
             .FirstOrDefaultAsync(ct);
 
-        if (link is null || link.ShortCode != code)
+        if (link is null)
             return NotFound404(http);
 
         if (link.DeletedAt is not null || link.ExpiresAt <= clock.GetUtcNow())
