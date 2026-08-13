@@ -30,7 +30,6 @@ public static class CreateLink
         if (!UrlPolicy.TryNormalize(request.Url, out var target, out var urlError))
         {
             errors["url"] = [urlError];
-            return TypedResults.ValidationProblem(errors);
         }
 
         if (errors.Count > 0)

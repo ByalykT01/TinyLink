@@ -8,13 +8,15 @@ builder.AddAppOptions();
 builder.AddPersistence();
 builder.AddServices();
 builder.Services.AddProblemDetails();
+builder.Services.AddTinyLinkRateLimiting(builder.Configuration);
 builder.Services.AddControllers();
 
 var app = builder.Build();
 
 app.UseScalarWithDefaults();
-app.UseHttpsRedirection();
 app.UseHsts();
+app.UseHttpsRedirection();
+app.UseRateLimiter();
 
 app.MapControllers();
 app.MapHealthChecks("/healthz");

@@ -1,3 +1,5 @@
+using TinyLink.Api.Extensions;
+
 namespace TinyLink.Api.Features.Links;
 
 public static class LinkEndpoints
@@ -5,7 +7,8 @@ public static class LinkEndpoints
     public static IEndpointRouteBuilder MapLinkEndpoints(this IEndpointRouteBuilder app)
     {
         var links = app.MapGroup("/api/links").WithTags("Links");
-        links.MapPost("/", CreateLink.Handle);
+        links.MapPost("/", CreateLink.Handle)
+            .RequireRateLimiting(RateLimitingExtensions.CreateLinkPolicy);
 
         app.MapGet("/{code:length(7)}", RedirectToTarget.Handle)
             .WithTags("Redirect")
