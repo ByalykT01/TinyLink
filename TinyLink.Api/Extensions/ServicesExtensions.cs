@@ -18,7 +18,6 @@ public static class ServicesExtensions
             builder.Services.AddScoped<ShortCodeAllocator>();
 
             builder.Services.AddProblemDetails();
-            builder.Services.AddControllers();
 
             return builder;
         }

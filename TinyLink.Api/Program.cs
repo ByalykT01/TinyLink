@@ -7,9 +7,7 @@ builder.AddDocumentation();
 builder.AddAppOptions();
 builder.AddPersistence();
 builder.AddServices();
-builder.Services.AddProblemDetails();
 builder.Services.AddTinyLinkRateLimiting(builder.Configuration);
-builder.Services.AddControllers();
 
 var app = builder.Build();
 

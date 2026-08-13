@@ -6,7 +6,7 @@ public sealed class DatabaseOptions
 {
     public const string SectionName = "Database";
     [Required] public required string Host { get; init; }
-    [Required] public required string Port { get; init; }
+    [Required] public required int Port { get; init; }
     [Required] public required string Name { get; init; }
     [Required] public required string User { get; init; }
     [Required] public required string Password { get; init; }
