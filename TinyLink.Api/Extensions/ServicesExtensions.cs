@@ -19,6 +19,8 @@ public static class ServicesExtensions
 
             builder.Services.AddProblemDetails();
 
+            builder.Services.AddControllers();
+
             return builder;
         }
     }

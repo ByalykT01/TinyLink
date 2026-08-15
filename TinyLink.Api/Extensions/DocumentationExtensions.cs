@@ -1,5 +1,5 @@
-using AspNetCore.Scalar;
 using Microsoft.OpenApi;
+using Scalar.AspNetCore;
 
 namespace TinyLink.Api.Extensions;
 
@@ -31,11 +31,7 @@ public static class DocumentationExtensions
         {
             app.MapOpenApi();
 
-            app.UseScalar(o =>
-            {
-                o.UseSpecUrl("/openapi/v1.json");
-                o.RoutePrefix = "scalar";
-            });
+            app.MapScalarApiReference();
         }
         return app;
     }
