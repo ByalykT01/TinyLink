@@ -16,7 +16,10 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(l => l.Id).ValueGeneratedNever();
             entity.Property(l => l.ShortCode).HasMaxLength(Base62.CodeLength).IsRequired();
             entity.HasIndex(l => l.ShortCode).IsUnique();
-            entity.Property(l => l.TargetUrl).HasMaxLength(UrlPolicy.MaxLength).IsRequired();
+            entity.Property(l => l.TargetUrl)
+                .HasConversion(v => v.AbsoluteUri, v => new Uri(v))
+                .HasMaxLength(UrlPolicy.MaxLength)
+                .IsRequired();
         });
 
         modelBuilder.HasSequence<long>("link_code_req")
