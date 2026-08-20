@@ -14,4 +14,9 @@
 **/*.md
 !README.md
 LICENSE
+# local config / secrets
+**/appsettings.Development.json
+**/appsettings.*.Local.json
+# not part of the runtime image
+TinyLink.Tests/
 
