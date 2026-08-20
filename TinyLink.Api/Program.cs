@@ -4,7 +4,7 @@ using TinyLink.Api.Features.Links;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddDocumentation();
-builder.AddAppOptions();
+builder.AddOptions();
 builder.AddPersistence();
 builder.AddServices();
 builder.Services.AddTinyLinkRateLimiting(builder.Configuration);

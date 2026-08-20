@@ -4,15 +4,14 @@ namespace TinyLink.Api.Extensions;
 
 public static class OptionsExtensions
 {
-    extension(IHostApplicationBuilder builder)
+
+    public static IHostApplicationBuilder AddOptions(this IHostApplicationBuilder builder)
     {
-        public IHostApplicationBuilder AddAppOptions()
-        {
-            builder.Services.AddOptions<DatabaseOptions>()
-                .Bind(builder.Configuration.GetSection(DatabaseOptions.SectionName)).ValidateDataAnnotations()
-                .ValidateOnStart();
-            return builder;
-        }
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.Services.AddOptions<DatabaseOptions>()
+            .Bind(builder.Configuration.GetSection(DatabaseOptions.SectionName)).ValidateDataAnnotations()
+            .ValidateOnStart();
+        return builder;
     }
 }
-

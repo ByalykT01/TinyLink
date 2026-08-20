@@ -20,6 +20,7 @@ public static class RedirectToTarget
                 TimeProvider clock,
                 CancellationToken ct)
     {
+
         var link = await dbContext.Links
             .AsNoTracking()
             .Where(l => l.ShortCode == code)
@@ -36,7 +37,7 @@ public static class RedirectToTarget
         }
 
         http.Response.Headers.CacheControl = "no-store";
-        return TypedResults.Redirect(link.TargetUrl, permanent: false, preserveMethod: false);
+        return TypedResults.Redirect(link.TargetUrl.ToString(), permanent: false, preserveMethod: false);
     }
 
     private static NotFound NotFound404(HttpContext http)

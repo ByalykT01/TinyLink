@@ -7,6 +7,9 @@ public static class DocumentationExtensions
 {
     public static IHostApplicationBuilder AddDocumentation(this IHostApplicationBuilder builder)
     {
+
+        ArgumentNullException.ThrowIfNull(builder);
+
         builder.Services.AddOpenApi(o =>
         {
             o.OpenApiVersion = OpenApiSpecVersion.OpenApi3_0;
@@ -27,6 +30,8 @@ public static class DocumentationExtensions
 
     public static IApplicationBuilder UseScalarWithDefaults(this WebApplication app)
     {
+        ArgumentNullException.ThrowIfNull(app);
+
         if (app.Environment.IsDevelopment())
         {
             app.MapOpenApi();

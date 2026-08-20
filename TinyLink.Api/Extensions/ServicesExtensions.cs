@@ -5,24 +5,21 @@ namespace TinyLink.Api.Extensions;
 
 public static class ServicesExtensions
 {
-    extension(IHostApplicationBuilder builder)
+
+    public static IHostApplicationBuilder AddServices(this IHostApplicationBuilder builder)
     {
-        public IHostApplicationBuilder AddServices()
-        {
+        var cipherKey = builder.Configuration["ShortCodes:Key"]
+?? throw new InvalidOperationException("ShortCodes:Key is not configured.");
 
-            var cipherKey = builder.Configuration["ShortCodes:Key"]
-    ?? throw new InvalidOperationException("ShortCodes:Key is not configured.");
+        builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.AddSingleton(new Cipher(Convert.FromBase64String(cipherKey)));
+        builder.Services.AddScoped<ShortCodeAllocator>();
 
-            builder.Services.AddSingleton(TimeProvider.System);
-            builder.Services.AddSingleton(new Cipher(Convert.FromBase64String(cipherKey)));
-            builder.Services.AddScoped<ShortCodeAllocator>();
+        builder.Services.AddProblemDetails();
 
-            builder.Services.AddProblemDetails();
+        builder.Services.AddControllers();
 
-            builder.Services.AddControllers();
-
-            return builder;
-        }
+        return builder;
     }
 }
 

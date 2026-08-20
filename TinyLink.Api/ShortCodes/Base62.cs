@@ -2,12 +2,12 @@ namespace TinyLink.Api.ShortCodes;
 
 public static class Base62
 {
-    private const string Base62Alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    private const string _base62Alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
     public const int CodeLength = 7;
     public const long Domain = 3_521_614_606_208;
 
-    private static readonly sbyte[] Digits = BuildDigitMap();
+    private static readonly sbyte[] _digits = BuildDigitMap();
 
 
     public static string Encode(long value)
@@ -21,7 +21,7 @@ public static class Base62
                     for (var i = CodeLength - 1; i >= 0; i--)
                     {
                         (v, var digit) = Math.DivRem(v, 62);
-                        span[i] = Base62Alphabet[(int)digit];
+                        span[i] = _base62Alphabet[(int)digit];
                     }
                 });
     }
@@ -35,7 +35,7 @@ public static class Base62
         foreach (var c in code)
         {
             if (c > 127) return false;
-            var digit = Digits[c];
+            var digit = _digits[c];
             if (digit < 0) return false;
             result = result * 62 + digit;
         }
@@ -48,9 +48,9 @@ public static class Base62
     {
         var map = new sbyte[128];
         Array.Fill(map, (sbyte)-1);
-        for (var i = 0; i < Base62Alphabet.Length; i++)
+        for (var i = 0; i < _base62Alphabet.Length; i++)
         {
-            map[Base62Alphabet[i]] = (sbyte)i;
+            map[_base62Alphabet[i]] = (sbyte)i;
         }
         return map;
     }
