@@ -10,7 +10,7 @@ using Xunit;
 namespace TinyLink.Tests.Integration.Data;
 
 [CollectionDefinition(Name)]
-public sealed class PostgresCollection : ICollectionFixture<PostgresFixture>
+public sealed class PostgresCollectionDefinition : ICollectionFixture<PostgresFixture>
 {
     public const string Name = "postgres";
 }
@@ -35,10 +35,10 @@ public sealed class PostgresFixture : IAsyncLifetime
     }
     public Task DisposeAsync() => _container.DisposeAsync().AsTask();
 }
-[Collection(PostgresCollection.Name)]
+[Collection(PostgresCollectionDefinition.Name)]
 public sealed class ApplicationDbContextTests(PostgresFixture fixture) : IAsyncLifetime
 {
-    private static readonly DateTimeOffset Now = new(2026, 8, 5, 12, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset _now = new(2026, 8, 5, 12, 0, 0, TimeSpan.Zero);
     public async Task InitializeAsync()
     {
         await using var dbContext = fixture.CreateDbContext();
@@ -115,8 +115,11 @@ public sealed class ApplicationDbContextTests(PostgresFixture fixture) : IAsyncL
         dbContext.Links.Add(NewLink(
             expiresAt: new DateTimeOffset(2026, 8, 5, 19, 0, 0, TimeSpan.FromHours(2))));
         var act = () => dbContext.SaveChangesAsync();
-        await act.Should().ThrowAsync<Exception>(
-            "timestamptz only accepts offset zero, so the handler must normalise client input to UTC");
+        var thrown = await act.Should().ThrowAsync<Exception>(
+            "Npgsql 6+ rejects non-UTC DateTimeOffset for timestamptz, " +
+            "so the handler must normalise client input to UTC before persisting");
+        thrown.Which.GetBaseException().Should().BeOfType<InvalidCastException>()
+            .Which.Message.Should().Contain("only offset 0 (UTC) is supported");
     }
     private static Link NewLink(
         long id = 1,
@@ -126,9 +129,8 @@ public sealed class ApplicationDbContextTests(PostgresFixture fixture) : IAsyncL
         {
             Id = id,
             ShortCode = shortCode,
-            TargetUrl = targetUrl!,
-            CreatedAt = Now,
-            ExpiresAt = expiresAt ?? Now.AddDays(7)
+            TargetUrl = targetUrl is null ? null! : new Uri(targetUrl),
+            CreatedAt = _now,
+            ExpiresAt = expiresAt ?? _now.AddDays(7)
         };
 }
-

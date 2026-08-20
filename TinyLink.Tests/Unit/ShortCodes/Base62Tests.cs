@@ -1,5 +1,6 @@
 using FluentAssertions;
 using TinyLink.Api.ShortCodes;
+using Xunit;
 
 namespace TinyLink.Tests.Unit.ShortCodes;
 
@@ -23,9 +24,9 @@ public class Base62Tests
     [Trait("Category", "Unit")]
     public void Roundtrip_ShouldEncodeAndDecodeToOriginalValue()
     {
-        long originalId = 123_456_789L;
+        var originalId = 123_456_789L;
 
-        string code = Base62.Encode(originalId);
+        var code = Base62.Encode(originalId);
         Base62.TryDecode(code, out var decodedId);
 
         decodedId.Should().Be(originalId);
@@ -40,7 +41,7 @@ public class Base62Tests
     [InlineData("🔥123456")]
     public void Decode_InvalidInput_ShouldHandleOrThrow(string invalidCode)
     {
-        bool success = Base62.TryDecode(invalidCode, out var decodedId);
+        var success = Base62.TryDecode(invalidCode, out var decodedId);
 
         success.Should().BeFalse();
         decodedId.Should().Be(0);
