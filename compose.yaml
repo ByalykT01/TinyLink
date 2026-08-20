@@ -1,6 +1,6 @@
 services:
   tinylink:
-    image: tinylink
+    image: tinylink:dev
     build:
       context: .
       dockerfile: Dockerfile
@@ -9,21 +9,24 @@ services:
         condition: service_healthy
     env_file:
       - .env
+    environment:
+      Database__Host: postgres
+      Database__Port: "5432"
     ports:
       - "8080:8080"
     networks:
       - backend
     healthcheck:
       test:
-        ["CMD-SHELL", "curl -f http://localhost:8080/healthz || exit 1"]
+        ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
       interval: 10s
       retries: 3
-      start_period: 10s
+      start_period: 30s
       timeout: 5s
+    restart: unless-stopped
 
   postgres:
-    image: postgres:latest
-    container_name: tinylink_dev 
+    image: postgres:17-alpine
     volumes:
       - pgdata:/var/lib/postgresql/data
     env_file:
@@ -34,11 +37,12 @@ services:
       - backend
     healthcheck:
       test:
-        ["CMD-SHELL", "pg_isready -U backend -d tinylink_dev -h localhost -p 5432"]
+        ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB -h localhost"]
       interval: 10s
       retries: 5
       start_period: 30s
       timeout: 10s
+    restart: unless-stopped
 
 networks:
   backend:
