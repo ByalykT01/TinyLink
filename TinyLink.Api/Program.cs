@@ -11,6 +11,7 @@ builder.Services.AddTinyLinkRateLimiting(builder.Configuration);
 
 var app = builder.Build();
 
+await app.MigrateDatabaseAsync();
 app.UseScalarWithDefaults();
 app.UseHsts();
 app.UseHttpsRedirection();
@@ -20,4 +21,4 @@ app.MapControllers();
 app.MapHealthChecks("/healthz");
 app.MapLinkEndpoints();
 
-app.Run();
+await app.RunAsync();
