@@ -1,0 +1,17 @@
+**/.git
+**/.github
+**/.vs
+**/.vscode
+**/.idea
+**/bin
+**/obj
+**/node_modules
+**/*.user
+**/.env
+**/docs
+**/benchmarks
+**/TestResults
+**/*.md
+!README.md
+LICENSE
+
