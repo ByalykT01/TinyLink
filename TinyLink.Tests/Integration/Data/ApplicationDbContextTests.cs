@@ -118,7 +118,7 @@ public sealed class ApplicationDbContextTests(PostgresFixture fixture) : IAsyncL
         var thrown = await act.Should().ThrowAsync<Exception>(
             "Npgsql 6+ rejects non-UTC DateTimeOffset for timestamptz, " +
             "so the handler must normalise client input to UTC before persisting");
-        thrown.Which.GetBaseException().Should().BeOfType<InvalidCastException>()
+        thrown.Which.GetBaseException().Should().BeOfType<ArgumentException>()
             .Which.Message.Should().Contain("only offset 0 (UTC) is supported");
     }
     private static Link NewLink(

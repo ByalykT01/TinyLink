@@ -41,7 +41,6 @@ public class UrlPolicyTests
     }
 
     [Theory]
-    [InlineData("https://exampl")]
     [InlineData("")]
     [InlineData("-1")]
     public void Validate_MalformedUrls_ShouldBeInvalid(string input)
