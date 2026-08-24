@@ -12,6 +12,9 @@ builder.Services.AddTinyLinkRateLimiting(builder.Configuration);
 var app = builder.Build();
 
 await app.MigrateDatabaseAsync();
+
+app.UseErrorHandling();
+
 app.UseScalarWithDefaults();
 app.UseHsts();
 app.UseHttpsRedirection();
