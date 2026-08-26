@@ -1,4 +1,5 @@
 using TinyLink.Api.Data;
+using TinyLink.Api.Features.Links;
 using TinyLink.Api.ShortCodes;
 
 namespace TinyLink.Api.Extensions;
@@ -13,11 +14,8 @@ public static class ServicesExtensions
 
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddSingleton(new Cipher(Convert.FromBase64String(cipherKey)));
+        builder.Services.AddSingleton<UrlPolicy>();
         builder.Services.AddScoped<ShortCodeAllocator>();
-
-        builder.Services.AddProblemDetails();
-
-        builder.Services.AddControllers();
 
         return builder;
     }

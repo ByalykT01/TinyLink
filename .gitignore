@@ -5,6 +5,7 @@
 
 # dotenv files
 .env
+.env.tmp
 
 # User-specific files
 *.rsuser
@@ -482,3 +483,5 @@ $RECYCLE.BIN/
 *.swp
 
 CoverageReport/
+
+

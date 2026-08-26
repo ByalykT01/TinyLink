@@ -4,6 +4,7 @@ using TinyLink.Api.Features.Links;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddDocumentation();
+builder.AddErrorHandling();
 builder.AddOptions();
 builder.AddPersistence();
 builder.AddServices();
@@ -20,7 +21,6 @@ app.UseHsts();
 app.UseHttpsRedirection();
 app.UseRateLimiter();
 
-app.MapControllers();
 app.MapHealthChecks("/healthz");
 app.MapLinkEndpoints();
 

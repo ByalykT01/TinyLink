@@ -14,13 +14,13 @@ internal static class CreateLink
 
     public static async Task<Results<Created<Response>, ValidationProblem>> Handle(
                 Request request,
+                UrlPolicy urlPolicy,
                 ApplicationDbContext dbContext,
                 ShortCodeAllocator codes,
                 TimeProvider clock,
                 CancellationToken ct)
     {
         var now = clock.GetUtcNow();
-        UrlPolicy urlPolicy = new();
         var errors = new Dictionary<string, string[]>();
 
         var requestedExpiry = request.ExpiresAt?.ToUniversalTime();
