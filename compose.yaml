@@ -12,10 +12,9 @@ services:
     environment:
       Database__Host: postgres
       Database__Port: "5432"
-    ports:
-      - "8080:8080"
     networks:
       - backend
+      - traefik
     healthcheck:
       test:
         ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
@@ -24,6 +23,12 @@ services:
       start_period: 30s
       timeout: 5s
     restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=tinylink_traefik"
+      - "traefik.http.routers.tinylink.rule=Host(`api.localhost`)"
+      - "traefik.http.routers.tinylink.entrypoints=web"
+      - "traefik.http.services.tinylink.loadbalancer.server.port=8080"
 
   postgres:
     image: postgres:17-alpine
@@ -44,9 +49,31 @@ services:
       timeout: 10s
     restart: unless-stopped
 
+  traefik:
+    image: traefik:v3.7
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.localhost`)"
+      - "traefik.http.routers.dashboard.entrypoints=web"
+      - "traefik.http.routers.dashboard.service=api@internal"
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+
+
 networks:
   backend:
-    driver: bridge
+    internal: true
+  traefik:
 
 volumes:
   pgdata:
