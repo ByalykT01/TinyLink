@@ -5,20 +5,20 @@ namespace TinyLink.Api.ShortCodes;
 
 public sealed class Cipher
 {
-    private const int Rounds = 10;
-    private const int HalfBits = 21;
+    private const int _rounds = 10;
+    private const int _halfBits = 21;
 
     // firstly, 23-bit integer's bit is getting moved 21 bits to the left
     // secondly, 1 is substracted, leaving with 32 bit with 20 last bits being one
-    private const uint HalfMask = (1u << HalfBits) - 1;
-    private const int MinKeyBytes = 32;
+    private const uint _halfMask = (1u << _halfBits) - 1;
+    private const int _minKeyBytes = 32;
 
     private readonly byte[] _key;
 
     public Cipher(byte[] key)
     {
         ArgumentNullException.ThrowIfNull(key);
-        ArgumentOutOfRangeException.ThrowIfLessThan(key.Length, MinKeyBytes);
+        ArgumentOutOfRangeException.ThrowIfLessThan(key.Length, _minKeyBytes);
         _key = [.. key];
     }
 
@@ -40,15 +40,15 @@ public sealed class Cipher
 
     private long Encrypt(long value)
     {
-        // extracting values of two 21-bit positions 
-        var left = (uint)((value >> HalfBits) & HalfMask);
-        var right = (uint)(value & HalfMask);
+        // extracting values of two 21-bit positions
+        var left = (uint)((value >> _halfBits) & _halfMask);
+        var right = (uint)(value & _halfMask);
 
-        for (var round = 0; round < Rounds; round++)
+        for (var round = 0; round < _rounds; round++)
         {
             (left, right) = (right, left ^ RoundFunction(round, right));
         }
-        return ((long)left << HalfBits) | right;
+        return ((long)left << _halfBits) | right;
     }
 
     private uint RoundFunction(int round, uint value)
@@ -61,7 +61,7 @@ public sealed class Cipher
         HMACSHA256.HashData(_key, input, hash);
 
         // trim the half's bit so that XOR won't spill into the other half
-        return BinaryPrimitives.ReadUInt32LittleEndian(hash) & HalfMask;
+        return BinaryPrimitives.ReadUInt32LittleEndian(hash) & _halfMask;
     }
 
 }
