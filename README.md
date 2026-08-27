@@ -1,19 +1,15 @@
-A URL shortener with a twist in the code generator: short codes come from a
-**keyed Feistel permutation** of a database sequence, so collisions are
-impossible by construction and the codes leak neither your link volume nor
-their creation order. Built on .NET 10, ASP.NET Core minimal APIs, EF Core and
-PostgreSQL.
+A URL shortener whose codes come from a keyed Feistel permutation of a database
+sequence. Collisions are impossible by construction, and a code gives away
+neither how many links exist nor what order they were created in. Built on
+.NET 10, ASP.NET Core minimal APIs, EF Core and PostgreSQL.
 
-This is a portfolio project — the goal is a small service done properly rather
-than a broad feature set.
-
-**Status:** working prototype. Create and redirect are complete and running;
-see [Roadmap](#roadmap) for what's deliberately absent.
+Status: working prototype. Creating links and redirecting both work. The
+[Roadmap](#roadmap) covers what's missing.
 
 ## Demo
 
 ```bash
-curl -i -X POST http://localhost:8080/api/links \
+curl -i -X POST http://api.localhost/api/links \
   -H 'Content-Type: application/json' \
   -d '{"url":"https://example.com/hello"}'
 ```
@@ -26,7 +22,7 @@ Content-Type: application/json
 ```
 
 ```bash
-curl -i http://localhost:8080/FKVY4mF
+curl -i http://api.localhost/FKVY4mF
 ```
 
 ```http
@@ -37,53 +33,32 @@ Cache-Control: no-store
 
 ## How the short codes work
 
-Most shorteners pick one of three approaches, and each gives something up:
-
-| Approach | Cost |
-| --- | --- |
-| Random code, retry on conflict | Extra round trip per collision; uniqueness check on every insert |
-| Sequential Base62 (`1`, `2`, `3`…) | Publishes exact link volume; every link is enumerable |
-| Truncated UUID or hash | Collisions become probabilistic; still needs the uniqueness check |
-
-TinyLink takes a fourth: a Postgres sequence produces a counter, a keyed
-Feistel network permutes it, and the result is Base62-encoded.
+TinyLink encrypts the counter. Postgres hands out 1, 2, 3 and onward, then a
+keyed cipher scrambles that number into another one in the same range. The
+scrambling is one-to-one, so two counter values can never produce the same
+code. No uniqueness check before the insert, no retry after it, and the unique
+index on `ShortCode` is only a safety net.
 
 ```
 nextval('link_code_req') ──► Cipher.Permute ──► Base62.Encode ──► "FKVY4mF"
       counter                  bijection            7 chars
 ```
 
-`Cipher` is a 10-round Feistel network over a 42-bit block (two 21-bit halves)
-whose round function is `HMAC-SHA256(key, round ‖ half)` truncated to 21 bits.
-A Feistel network is a **bijection**, and the sequence never repeats, so two
-links can never receive the same code. There is no retry loop and no
-existence check before insert — one round trip. The unique index on
-`ShortCode` is a backstop against operational accidents, not part of the
-control flow.
+The cipher is a ten-round Feistel network over 42 bits with HMAC-SHA256 as its
+round function, hand-rolled because AES's 128-bit block is far too wide for a
+seven-character code. The handful of outputs that fall outside the Base62 range
+get re-encrypted until they fit. See `Cipher.cs`.
 
-The code space is 62⁷ = 3,521,614,606,208, smaller than 2⁴², so `Permute` uses
-**cycle walking**: re-encrypt until the value lands inside the Base62 domain.
-That costs ~1.25 encryptions on average and preserves bijectivity.
-
-! This isn't a standards-approved FPE construction. NIST FF1 and FF3-1 are the
-  certified options; 10 rounds is a comfortable margin over the Luby–Rackoff
-  bound, not a proof.
-! Codes are unpredictable, **not secret**. A guess has a 1-in-3.5-trillion
-  chance and creation is rate limited, but anything sensitive behind a short
-  link still needs real authorization.
-
-Key rotation is safe: codes are persisted at creation and never recomputed, so
-rotating `ShortCodes:Key` only affects codes issued afterwards.
+It isn't a standardized construction. NIST's FF1 and FF3-1 are the certified
+options if you need one.
 
 ## Prerequisites
 
-| Tool | Version | Needed for |
-| --- | --- | --- |
-| Docker Engine + Compose v2 | any current | Running the stack; also required by the test suite |
-| .NET SDK | 10.0.110 (see `global.json`) | Building or testing outside Docker |
-| `openssl` | any | The key bootstrap script |
+Docker Engine and Compose v2 run the stack, and the integration tests need them
+too. To build or test outside Docker you want the .NET SDK version pinned in
+`global.json` (10.0.110). The key bootstrap script calls `openssl`.
 
-Ports `8080` (API) and `5555` (Postgres) must be free.
+Ports 80 and 8080 (Traefik) and 5555 (Postgres) have to be free.
 
 ## Quickstart
 
@@ -91,33 +66,51 @@ Ports `8080` (API) and `5555` (Postgres) must be free.
 git clone https://github.com/ByalykT01/TinyLink.git
 cd TinyLink
 cp .env.example .env
-./scripts/set-secret.sh    # generates ShortCodes__Key into .env
+./scripts/set-secret.sh    # writes ShortCodes__Key into .env
 docker compose up --build
 ```
 
-Database migrations are applied automatically at startup. Once the containers
-report healthy, the [Demo](#demo) commands above will work as written. In
-Development the Scalar API reference is served at `/scalar`.
+Migrations are applied at startup. Once the containers report healthy the
+[Demo](#demo) commands work as written. In Development the Scalar API reference
+is served at `/scalar`.
+
+## Routing
+
+Traefik fronts the stack and picks up services from Docker labels, so the API
+has no published host port of its own and answers on `http://api.localhost`.
+The Traefik dashboard is at `http://traefik.localhost`, or on
+`http://localhost:8080/dashboard/` if you'd rather go straight at it.
+Browsers and most libc resolvers send anything under `.localhost` to
+127.0.0.1. If yours doesn't, add `api.localhost` and `traefik.localhost` to
+`/etc/hosts`.
+
+Since the API binds no host port, you can run several copies and Traefik will
+round-robin across them:
+
+```bash
+docker compose up -d --scale tinylink=3
+```
 
 ## Configuration
 
-All settings can be supplied as environment variables, using `__` for nesting.
-`.env.example` lists the full set.
+Every setting can come in as an environment variable, with `__` for nesting.
+`.env.example` has the full set.
 
 | Variable | Required | Default | Notes |
 | --- | --- | --- | --- |
-| `ShortCodes__Key` | yes | — | Base64, at least 32 bytes. The service refuses to start without it. Generated by `scripts/set-secret.sh` |
-| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | yes | — | Consumed by the Postgres container |
-| `Database__Host` | yes | — | `postgres` under Compose, `localhost` when running the API directly |
+| `ShortCodes__Key` | yes | — | Base64, 32 bytes or more. The service refuses to start without it. Written by `scripts/set-secret.sh` |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | yes | — | Read by the Postgres container |
+| `Database__Host` | yes | — | `postgres` under Compose, `localhost` when you run the API directly |
 | `Database__Port` | yes | — | `5432` inside the Compose network, `5555` from the host |
-| `Database__Name`, `Database__User`, `Database__Password` | yes | — | Must match the `POSTGRES_*` values |
+| `Database__Name`, `Database__User`, `Database__Password` | yes | — | Have to match the `POSTGRES_*` values |
 | `ASPNETCORE_ENVIRONMENT` | no | `Production` | `compose.override.yaml` sets `Development` |
 | `RateLimiting__CreateLink__Burst` | no | `20` | Token bucket capacity |
 | `RateLimiting__CreateLink__PerMinute` | no | `20` | Refill rate |
 
-`ShortCodes__Key` is the only true secret. Never commit `.env`.
+`ShortCodes__Key` is the only real secret here.
 
 ## API
+
 
 | Method | Route | Result |
 | --- | --- | --- |
@@ -125,29 +118,28 @@ All settings can be supplied as environment variables, using `__` for nesting.
 | `GET` | `/{code}` | `302` to the target; `410` if expired or deleted; `404` if unknown |
 | `GET` | `/healthz` | Database connectivity |
 
-Targets must be absolute `http` or `https` URLs of at most 2000 characters,
-without embedded credentials. `expiresAt` is optional on creation and defaults
+Targets have to be absolute `http` or `https` URLs, 2000 characters at most,
+with no embedded credentials. `expiresAt` is optional on creation and defaults
 to seven days out.
 
-Errors are `application/problem+json` and carry a `traceId` for log
-correlation.
+Errors come back as `application/problem+json` with a `traceId` you can grep
+the logs for.
 
 ## Design notes
 
-- **Cache headers are deliberate.** A `302` is `no-store`, since the target may
-  change or expire. A `410` is `public, max-age=86400`, because expiry is
-  permanent and worth caching. A `404` is `no-store`, so a code created later
-  isn't shadowed by a cached miss.
+The cache headers are chosen per status code. A `302` is `no-store`, since the
+target can change or expire under it. A `410` gets `public, max-age=86400`,
+because expiry is permanent and worth caching. A `404` is `no-store` again, so
+that a code created later isn't shadowed by a cached miss.
 
-- **Timestamps** are `timestamptz` and always read back as UTC. Npgsql rejects
-  a non-UTC `DateTimeOffset` outright, so creation normalizes on the way in.
+Timestamps are `timestamptz` and always read back as UTC. Npgsql rejects a
+non-UTC `DateTimeOffset` outright, so creation normalizes on the way in.
+Rate limiting partitions IPv6 clients by `/64` instead of by full address. One
+subscriber usually holds an entire /64 and could otherwise cycle through
+billions of buckets.
 
-- **Rate limiting** partitions IPv6 clients by `/64` rather than by full
-  address, since one subscriber typically holds an entire /64 and could
-  otherwise rotate through billions of buckets.
-
-- **The sequence is bounded** at 62⁷−1 in the migration, so the counter can
-  never exceed what a 7-character code represents.
+The sequence is bounded at 62⁷−1 in the migration, so the counter can't outrun
+what seven characters can represent.
 
 ## Tests
 
@@ -156,39 +148,46 @@ dotnet test
 ```
 
 Unit tests cover Base62 and the URL policy. Integration tests run against a
-real PostgreSQL 17 container via Testcontainers — no local database needed, but
-the Docker daemon must be running. CI runs the same suite on every push, with
-warnings treated as errors under `AnalysisMode=All`.
+real PostgreSQL 17 container through Testcontainers, so no local database is
+needed, though the Docker daemon has to be up. CI runs the same suite on every
+push with warnings as errors under `AnalysisMode=All`.
 
 ## Troubleshooting
 
-**My change didn't take effect.** `docker compose up` reuses the existing
-image, and if a rebuild fails it will happily start the previous one. Use
-`docker compose up --build`, and check that the build itself succeeded —
-warnings are errors here, so an unused variable is enough to fail it.
+**My change didn't take effect.**
 
-**`InvalidOperationException: ShortCodes:Key is not configured.`** The key is
-missing from `.env` or user-secrets. Run `./scripts/set-secret.sh`.
+`docker compose up` will reuse the existing image, and when a rebuild fails it
+cheerfully starts the previous one. Use `docker compose up --build` and check
+that the build actually succeeded.
+Warnings are errors here, so an unused variable is enough to fail it.
+`InvalidOperationException: ShortCodes:Key is not configured.` The key is
+missing from `.env` or from user-secrets. Run `./scripts/set-secret.sh`. Port
+already allocated. Something else holds 80, 8080 or 5555. Change the host
+side of the mapping in `compose.yaml`.
 
-**Port already allocated.** Something else holds `8080` or `5555`. Change the
-host side of the mapping in `compose.yaml`.
+**Traefik answers `api.localhost` with a 404, or the request times out.**
 
-**Tests fail with Docker connection errors.** Testcontainers needs a running
-daemon; start Docker Desktop or `dockerd` and retry.
+Check that `traefik.docker.network` on the `tinylink` service matches the
+network Traefik is actually attached to (`docker network ls`), and that
+`loadbalancer.server.port` is the port the app listens on inside the container,
+8080.
 
-**Migration errors after pulling schema changes.** The Postgres volume still
-holds the old schema. `docker compose down -v` drops it, then start again.
+**Tests fail with Docker connection errors.**
+
+Testcontainers needs a running daemon. Start Docker Desktop or `dockerd` and
+try again. Migration errors after pulling schema changes. The Postgres volume
+still has the old schema in it. `docker compose down -v` drops it, then start
+again.
 
 ## Roadmap
 
-Deliberately absent, in rough priority order: tests for `Cipher` and
-`ShortCodeAllocator`; endpoint tests via `WebApplicationFactory`; a delete
-endpoint (the `DeletedAt` column exists and the redirect honours it, but
-nothing writes it); click counting; caching on the redirect path; a cleanup job
-for expired rows; API keys.
+Left out for now, roughly in the order I'd add them: tests for `Cipher` and
+`ShortCodeAllocator`; endpoint tests through `WebApplicationFactory`; a delete
+endpoint (the `DeletedAt` column exists and redirects honour it, nothing writes
+it yet); click counting; caching on the redirect path; a cleanup job for expired
+rows; API keys.
 
-Caching and metrics are held back on purpose until something measures the read
-path.
+Caching and metrics wait until something measures the read path.
 
 ## License
 
