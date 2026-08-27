@@ -12,6 +12,7 @@ services:
     environment:
       Database__Host: postgres
       Database__Port: "5432"
+      ForwardedHeaders__KnownNetworks__0: "172.16.0.0/12"
     networks:
       - backend
       - traefik
@@ -40,6 +41,7 @@ services:
       - "5555:5432"
     networks:
       - backend
+      - dbaccess
     healthcheck:
       test:
         ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB -h localhost"]
@@ -74,6 +76,7 @@ networks:
   backend:
     internal: true
   traefik:
+  dbaccess:
 
 volumes:
   pgdata:
