@@ -53,4 +53,10 @@ public sealed class LinkResolver(
 
         return resolution;
     }
+
+    public ValueTask InvalidateAsync(
+        string code,
+        CancellationToken ct) =>
+        cache.RemoveAsync(
+            $"{_cacheKeyPrefix}{code}", ct);
 }
