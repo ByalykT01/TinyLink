@@ -16,6 +16,8 @@ public static class ServicesExtensions
         builder.Services.AddSingleton(new Cipher(Convert.FromBase64String(cipherKey)));
         builder.Services.AddSingleton<UrlPolicy>();
         builder.Services.AddScoped<ShortCodeAllocator>();
+        builder.Services.AddHybridCache();
+        builder.Services.AddSingleton<LinkResolver>();
 
         return builder;
     }

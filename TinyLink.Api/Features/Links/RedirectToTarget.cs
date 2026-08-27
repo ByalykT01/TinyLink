@@ -1,6 +1,4 @@
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.EntityFrameworkCore;
-using TinyLink.Api.Data;
 
 namespace TinyLink.Api.Features.Links;
 
@@ -16,18 +14,14 @@ public static class RedirectToTarget
     public static async Task<Results<RedirectHttpResult, NotFound, StatusCodeHttpResult>> Handle(
                 string code,
                 HttpContext http,
-                ApplicationDbContext dbContext,
+                LinkResolver resolver,
                 TimeProvider clock,
                 CancellationToken ct)
     {
 
-        var link = await dbContext.Links
-            .AsNoTracking()
-            .Where(l => l.ShortCode == code)
-            .Select(l => new { l.TargetUrl, l.ExpiresAt, l.DeletedAt })
-            .FirstOrDefaultAsync(ct);
+        var link = await resolver.ResolveAsync(code, ct);
 
-        if (link is null)
+        if (link.TargetUrl is null || !link.Exists)
             return NotFound404(http);
 
         if (link.DeletedAt is not null || link.ExpiresAt <= clock.GetUtcNow())
@@ -37,7 +31,10 @@ public static class RedirectToTarget
         }
 
         http.Response.Headers.CacheControl = "no-store";
-        return TypedResults.Redirect(link.TargetUrl.AbsoluteUri, permanent: false, preserveMethod: false);
+        return TypedResults.Redirect(
+            link.TargetUrl.AbsoluteUri,
+            permanent: false,
+            preserveMethod: false);
     }
 
     private static NotFound NotFound404(HttpContext http)

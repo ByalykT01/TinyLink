@@ -11,7 +11,7 @@ public static class PersistenceExtensions
         var database = builder.Configuration.GetSection(DatabaseOptions.SectionName).Get<DatabaseOptions>() ??
                        throw new InvalidOperationException("Database Configuration not found");
 
-        builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
             options.UseNpgsql(database.ToConnectionString));
 
         builder.Services.AddHealthChecks()

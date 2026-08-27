@@ -16,6 +16,7 @@
     <PackageReference Include="Microsoft.OpenApi" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="Scalar.AspNetCore" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" />
 
     <InternalsVisibleTo Include="TinyLink.Tests" />
   </ItemGroup>
