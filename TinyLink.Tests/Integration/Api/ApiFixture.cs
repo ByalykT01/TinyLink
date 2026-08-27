@@ -5,6 +5,9 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Npgsql;
 using Testcontainers.PostgreSql;
 using Xunit;
+using TinyLink.Api.Data;
+using Microsoft.Extensions.DependencyInjection;
+
 namespace TinyLink.Tests.Integration.Api;
 
 [CollectionDefinition(Name)]
@@ -30,6 +33,35 @@ public sealed class ApiFixture : IAsyncLifetime
             AllowAutoRedirect = false
         });
     }
+
+    public async Task ExecuteDbContextAsync(
+    Func<ApplicationDbContext, Task> action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        if (_app is null)
+            throw new InvalidOperationException("The test application has not started.");
+        await using var scope = _app.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        await action(dbContext);
+    }
+
+    public WebApplicationFactory<Program> CreateApplicationWithRateLimit(
+        int burst,
+        int perMinute)
+    {
+        if (_app is null)
+            throw new InvalidOperationException("The test application has not started.");
+        return _app.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting(
+                "RateLimiting:CreateLink:Burst",
+                burst.ToString(CultureInfo.InvariantCulture));
+            builder.UseSetting(
+                "RateLimiting:CreateLink:PerMinute",
+                perMinute.ToString(CultureInfo.InvariantCulture));
+        });
+    }
+
     public async Task DisposeAsync()
     {
         Client?.Dispose();
