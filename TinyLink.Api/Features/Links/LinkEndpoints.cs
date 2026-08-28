@@ -7,8 +7,12 @@ public static class LinkEndpoints
     public static IEndpointRouteBuilder MapLinkEndpoints(this IEndpointRouteBuilder app)
     {
         var links = app.MapGroup("/api/links").WithTags("Links");
+
         links.MapPost("/", CreateLink.Handle)
             .RequireRateLimiting(RateLimitingExtensions.CreateLinkPolicy);
+
+        links.MapDelete("/{code:length(7)}", DeleteLink.Handle)
+            .WithTags("Delete");
 
         app.MapGet("/{code:length(7)}", RedirectToTarget.Handle)
             .WithTags("Redirect")
@@ -19,6 +23,7 @@ public static class LinkEndpoints
                 + "Test with `curl -i` and no -L.")
             .Produces(StatusCodes.Status302Found)
             .Produces(StatusCodes.Status410Gone);
+
 
         return app;
     }
