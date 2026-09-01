@@ -12,6 +12,17 @@ public static class OptionsExtensions
         builder.Services.AddOptions<DatabaseOptions>()
             .Bind(builder.Configuration.GetSection(DatabaseOptions.SectionName)).ValidateDataAnnotations()
             .ValidateOnStart();
+
+        builder.Services.AddOptions<LinkCleanupOptions>()
+            .Bind(builder.Configuration.GetSection(LinkCleanupOptions.SectionName))
+            .Validate(
+                options => options.Interval > TimeSpan.Zero,
+                "Link cleanup interval must be greated than zero")
+            .Validate(
+                options => options.Retention > TimeSpan.Zero,
+                "Link cleanup retention must be greated than zero")
+            .ValidateOnStart();
+
         return builder;
     }
 }

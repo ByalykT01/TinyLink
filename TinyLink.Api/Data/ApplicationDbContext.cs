@@ -20,12 +20,16 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 .HasConversion(v => v.AbsoluteUri, v => new Uri(v))
                 .HasMaxLength(UrlPolicy.MaxLength)
                 .IsRequired();
+
+            entity.HasIndex(link => link.DeletedAt)
+                .HasFilter("\"DeletedAt\" IS NOT NULL");
         });
 
         modelBuilder.HasSequence<long>("link_code_req")
             .StartsAt(1).IncrementsBy(1)
             .HasMin(1).HasMax(Base62.Domain - 1) // keyed Feistel max num of values
             .IsCyclic(false);
+
     }
 
     public DbSet<Link> Links => Set<Link>();

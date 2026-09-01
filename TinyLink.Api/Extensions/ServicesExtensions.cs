@@ -18,7 +18,8 @@ public static class ServicesExtensions
         builder.Services.AddScoped<ShortCodeAllocator>();
         builder.Services.AddHybridCache();
         builder.Services.AddSingleton<LinkResolver>();
-
+        builder.Services.AddSingleton<DeletedLinkCleanup>();
+        builder.Services.AddHostedService<DeletedLinkCleanupWorker>();
         return builder;
     }
 }
