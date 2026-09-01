@@ -23,6 +23,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
             entity.HasIndex(link => link.DeletedAt)
                 .HasFilter("\"DeletedAt\" IS NOT NULL");
+
+            entity.HasIndex(link => link.ExpiresAt)
+                .HasFilter("\"ExpiresAt\" IS NOT NULL");
         });
 
         modelBuilder.HasSequence<long>("link_code_req")
