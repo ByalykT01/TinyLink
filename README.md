@@ -6,8 +6,8 @@ how many links exist nor the order in which they were created.
 
 Built with .NET 10, ASP.NET Core minimal APIs, EF Core and PostgreSQL.
 
-Status: working prototype. Links can be created, resolved and deleted. The
-[Roadmap](#roadmap) lists the next planned changes.
+Status: working prototype. Links can be created, resolved and deleted. Deleted
+and expired links are permanently removed by a background worker.
 
 ## Demo
 
@@ -162,6 +162,10 @@ Docker Compose.
 | `ASPNETCORE_ENVIRONMENT` | no | `Production` | `compose.override.yaml` sets this to `Development` |
 | `RateLimiting__CreateLink__Burst` | no | `20` | Maximum token-bucket capacity |
 | `RateLimiting__CreateLink__PerMinute` | no | `20` | Token refill rate |
+| `LinkCleanup__Interval` | no | `1h` | Background cleanup run interval |
+| `LinkCleanup__Retention` | no | `7d` | Age after which soft-deleted/expired links are removed |
+| `ForwardedHeaders__KnownNetworks__0` | no | — | CIDR range of trusted proxies (e.g., `172.16.0.0/12`) |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | no | — | OpenTelemetry collector endpoint (e.g., `http://otel:4318`) |
 
 The short-code key and database password are secrets. The development values
 from the repository should not be used in a public deployment.
@@ -257,6 +261,17 @@ rate limiting to use the original client address without trusting arbitrary
 The sequence is bounded at 62⁷−1 in the migration, preventing it from
 generating values that cannot be represented by a seven-character code.
 
+## Observability
+
+OpenTelemetry tracing and metrics are built in. Configure `OTEL_EXPORTER_OTLP_ENDPOINT` to send data to a collector (e.g., `http://otel:4318` in the Compose stack). The default configuration instruments:
+
+- ASP.NET Core requests (excluding `/healthz`)
+- Outgoing HTTP client calls
+- Npgsql database commands
+- Custom `TinyLink.Api` activity source
+
+Traefik is also configured to export traces and metrics to the same OTLP endpoint.
+
 ## Tests
 
 ```bash
@@ -334,7 +349,7 @@ This permanently removes the local database volume.
 
 ## Roadmap
 
-The next planned change is a background worker that permanently removes links seven days after soft deletion.
+A background worker permanently removes soft-deleted and expired links on a configurable schedule (default: every hour, retention: 7 days).
 
 Possible later additions include:
 
