@@ -8,8 +8,7 @@ public sealed class Cipher
     private const int _rounds = 10;
     private const int _halfBits = 21;
 
-    // firstly, 23-bit integer's bit is getting moved 21 bits to the left
-    // secondly, 1 is substracted, leaving with 32 bit with 20 last bits being one
+    // The 42-bit code space splits into two 21-bit halves for the Feistel rounds.
     private const uint _halfMask = (1u << _halfBits) - 1;
     private const int _minKeyBytes = 32;
 
