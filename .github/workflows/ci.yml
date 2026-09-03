@@ -18,7 +18,6 @@ jobs:
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
-          cache: true
 
       - name: Restore
         run: dotnet restore TinyLink.slnx
@@ -57,7 +56,7 @@ jobs:
       - name: Wait for traefik health
         run: |
           for i in {1..30}; do
-            if curl -sf http://localhost:8080/healthz >/dev/null; then
+            if curl -sf http://localhost:8080/api/version >/dev/null; then
               echo "Traefik healthy"
               exit 0
             fi
