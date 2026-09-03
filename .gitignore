@@ -484,4 +484,7 @@ $RECYCLE.BIN/
 
 CoverageReport/
 
+# Local planning notes; never publish.
+master_plan.md
+
 
