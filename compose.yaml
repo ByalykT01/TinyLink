@@ -13,6 +13,7 @@ services:
       Database__Host: postgres
       Database__Port: "5432"
       ForwardedHeaders__KnownNetworks__0: "172.16.0.0/12"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel:4318"
     networks:
       - backend
       - traefik
@@ -51,6 +52,15 @@ services:
       timeout: 10s
     restart: unless-stopped
 
+  otel:
+    image: otel/opentelemetry-collector-contrib:0.159.0
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
+    networks:
+      - traefik
+
   traefik:
     image: traefik:v3.7
     ports:
@@ -70,6 +80,8 @@ services:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
+      - "--tracing.otlp.http.endpoint=http://otel:4318/v1/traces"
+      - "--metrics.otlp.http.endpoint=http://otel:4318/v1/metrics"
 
 
 networks:
