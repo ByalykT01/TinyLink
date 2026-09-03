@@ -48,6 +48,46 @@ public sealed class CreateLinkEndpointTests(ApiFixture fixture)
             .TryGetProperty("url", out _)
             .Should().BeTrue();
     }
+    [Fact]
+    public async Task Post_ExplicitExpiration_PersistsAsUtc()
+    {
+        var requested = new DateTimeOffset(2030, 1, 1, 12, 0, 0, TimeSpan.FromHours(2));
+        var response = await fixture.Client.PostAsJsonAsync(
+            "/api/links",
+            new { url = "https://example.com/explicit-expiry", expiresAt = requested });
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        var body = await response.Content.ReadFromJsonAsync<CreatedLink>();
+        body.Should().NotBeNull();
+        body!.ExpiresAt.Should().Be(requested.ToUniversalTime());
+        body.ExpiresAt!.Value.Offset.Should().Be(TimeSpan.Zero);
+        await fixture.ExecuteDbContextAsync(async dbContext =>
+        {
+            var stored = await dbContext.Links
+                .Where(link => link.ShortCode == body.ShortCode)
+                .Select(link => link.ExpiresAt)
+                .SingleAsync();
+            stored.Should().Be(requested.ToUniversalTime());
+            stored!.Value.Offset.Should().Be(TimeSpan.Zero);
+        });
+    }
+    [Fact]
+    public async Task Post_PastExpiration_Returns400WithValidationProblem()
+    {
+        var response = await fixture.Client.PostAsJsonAsync(
+            "/api/links",
+            new
+            {
+                url = "https://example.com/past-expiry",
+                expiresAt = DateTimeOffset.UtcNow.AddMinutes(-1)
+            });
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType!.MediaType
+            .Should().Be("application/problem+json");
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        problem.GetProperty("errors")
+            .TryGetProperty("expiresAt", out _)
+            .Should().BeTrue();
+    }
     private sealed record CreatedLink(
         string ShortCode,
         DateTimeOffset? ExpiresAt,
