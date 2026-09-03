@@ -51,6 +51,11 @@ public sealed class LinkResolver(
             _cacheOptions,
             cancellationToken: ct);
 
+        if (!resolution.Exists)
+        {
+            await cache.RemoveAsync(key, ct);
+        }
+
         return resolution;
     }
 
