@@ -1,19 +1,89 @@
-name: ci
+name: CI
+
 on:
   push:
+    branches: [main]
   pull_request:
+    branches: [main]
+
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-dotnet@v6
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
         with:
-          global-json-file: global.json
-      - run: dotnet restore
-      - run: dotnet build -c Release --no-restore
-      - run: dotnet test -c Release --no-build --collect:"XPlat Code Coverage"
-      - name: Prepare env for compose
-        run: cp .env.example .env
-      - run: docker compose -f compose.yaml build
+          dotnet-version: '10.0.x'
+          cache: true
+
+      - name: Restore
+        run: dotnet restore TinyLink.slnx
+
+      - name: Build (Release, warnings as errors)
+        run: dotnet build TinyLink.slnx --configuration Release --no-restore -warnaserror
+
+      - name: Run unit tests
+        run: dotnet test TinyLink.slnx --configuration Release --no-build --filter "FullyQualifiedName!~Integration"
+
+      - name: Generate temp short-code key
+        id: shortcode_key
+        run: |
+          KEY=$(openssl rand -base64 32)
+          echo "key=$KEY" >> "$GITHUB_OUTPUT"
+          echo "SHORTCODES__KEY=$KEY" >> "$GITHUB_ENV"
+
+      - name: Write .env for compose
+        run: |
+          cat > .env <<'EOF'
+          POSTGRES_USER=postgres
+          POSTGRES_PASSWORD=postgres
+          POSTGRES_DB=tinylink
+          Database__Host=postgres
+          Database__Port=5432
+          Database__Name=tinylink
+          Database__User=postgres
+          Database__Password=postgres
+          ShortCodes__Key=${{ env.SHORTCODES__KEY }}
+          OTEL_EXPORTER_OTLP_ENDPOINT=http://otel:4318
+          EOF
+
+      - name: Start compose
+        run: docker compose up -d --build
+
+      - name: Wait for traefik health
+        run: |
+          for i in {1..30}; do
+            if curl -sf http://localhost:8080/healthz >/dev/null; then
+              echo "Traefik healthy"
+              exit 0
+            fi
+            echo "Waiting for traefik... ($i/30)"
+            sleep 2
+          done
+          echo "Traefik did not become healthy"
+          exit 1
+
+      - name: Wait for tinylink health via Traefik
+        run: |
+          for i in {1..60}; do
+            if curl -sf -H "Host: api.localhost" http://localhost/healthz >/dev/null; then
+              echo "TinyLink healthy via Traefik"
+              exit 0
+            fi
+            echo "Waiting for TinyLink via Traefik... ($i/60)"
+            sleep 2
+          done
+          echo "TinyLink did not become healthy via Traefik"
+          docker compose logs tinylink
+          exit 1
+
+      - name: Run integration tests
+        run: dotnet test TinyLink.slnx --configuration Release --no-build --filter "FullyQualifiedName~Integration"
+
+      - name: Compose down (always)
+        if: always()
+        run: docker compose down -v
