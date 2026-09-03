@@ -13,6 +13,11 @@ updates:
       minor-patch:
         patterns: ["*"]
         update-types: [minor, patch]
+    ignore:
+      # Microsoft.AspNetCore.OpenApi 10.x constrains Microsoft.OpenApi to < 3.0.0;
+      # a major bump breaks restore (NU1608). Revisit when AspNetCore.OpenApi allows v3.
+      - dependency-name: "Microsoft.OpenApi"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
