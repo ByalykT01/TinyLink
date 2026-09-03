@@ -1,5 +1,4 @@
 import http from "k6/http";
-
 import { check, sleep } from "k6";
 
 const base = __ENV.BASE_URL || "http://api.localhost";
@@ -25,7 +24,9 @@ export function setup() {
 }
 
 export default function(data) {
-  const res = http.get(`${base}/${data.code}`, { redirects: 0 });
+  const res = http.get(`${base}/${data.code}`, {
+    redirects: 0,
+    tags: { name: "gone" },
+  });
   check(res, { "410": (r) => r.status === 410 });
 }
-

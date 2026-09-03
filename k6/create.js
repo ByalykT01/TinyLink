@@ -14,7 +14,10 @@ export default function() {
   const res = http.post(
     `${base}/api/links`,
     JSON.stringify({ url: `https://example.com/k6-${__VU}-${__ITER}` }),
-    { headers: { "Content-Type": "application/json" } },
+    {
+      headers: { "Content-Type": "application/json" },
+      tags: { name: "create" },
+    },
   );
 
   check(res, { "201 or 429": (r) => r.status === 201 || r.status === 429 });

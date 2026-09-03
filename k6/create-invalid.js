@@ -9,7 +9,10 @@ export default function() {
   const res = http.post(
     `${base}/api/links`,
     JSON.stringify({ url: "not-a-url" }),
-    { headers: { "Content-Type": "application/json" } },
+    {
+      headers: { "Content-Type": "application/json" },
+      tags: { name: "create-invalid" },
+    },
   );
 
   check(res, { "400": (r) => r.status === 400 });

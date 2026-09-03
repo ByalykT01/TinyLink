@@ -25,6 +25,9 @@ export function setup() {
 
 export default function(data) {
   const code = data.codes[Math.floor(Math.random() * data.codes.length)];
-  const res = http.get(`${base}/${code}`, { redirects: 0 });
+  const res = http.get(`${base}/${code}`, {
+    redirects: 0,
+    tags: { name: "mixed-redirect" },
+  });
   check(res, { "302": (r) => r.status === 302 });
 }
