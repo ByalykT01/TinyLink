@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using TinyLink.Api.Features.Links;
 using Xunit;
 namespace TinyLink.Tests.Integration.Api;
@@ -64,6 +65,49 @@ public sealed class DeleteLinkEndpointTests(ApiFixture fixture)
             "zzzzzzz",
             token);
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+    [Fact]
+    public async Task Delete_MalformedToken_Returns404()
+    {
+        var created = await CreateLinkAsync("malformed-token");
+        using var response = await DeleteAsync(created.ShortCode, "....");
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+    [Fact]
+    public async Task Delete_ExpiredLink_Returns204()
+    {
+        var created = await CreateLinkAsync("expired-delete");
+        await fixture.ExecuteDbContextAsync(async dbContext =>
+        {
+            await dbContext.Links
+                .Where(link => link.ShortCode == created.ShortCode)
+                .ExecuteUpdateAsync(update => update
+                    .SetProperty(
+                        link => link.ExpiresAt,
+                        DateTimeOffset.UtcNow.AddMinutes(-1)));
+        });
+        using var redirect = await fixture.Client.GetAsync(new Uri($"/{created.ShortCode}"));
+        redirect.StatusCode.Should().Be(HttpStatusCode.Gone);
+        using var deleted = await DeleteAsync(created.ShortCode, created.DeleteToken);
+        deleted.StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+    [Fact]
+    public async Task Delete_ConcurrentValidDeletions_BothReturn204()
+    {
+        var created = await CreateLinkAsync("concurrent-delete");
+        var responses = await Task.WhenAll(
+            DeleteAsync(created.ShortCode, created.DeleteToken),
+            DeleteAsync(created.ShortCode, created.DeleteToken));
+        try
+        {
+            responses.Should().OnlyContain(
+                response => response.StatusCode == HttpStatusCode.NoContent);
+        }
+        finally
+        {
+            foreach (var response in responses)
+                response.Dispose();
+        }
     }
     [Fact]
     public async Task Delete_AlreadyDeletedLink_Returns204()
