@@ -20,7 +20,7 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Restore
-        run: dotnet restore TinyLink.slnx
+        run: dotnet restore TinyLink.slnx --locked-mode
 
       - name: Build (Release, warnings as errors)
         run: dotnet build TinyLink.slnx --configuration Release --no-restore -warnaserror
