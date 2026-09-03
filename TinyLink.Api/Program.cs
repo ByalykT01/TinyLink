@@ -9,6 +9,7 @@ builder.AddErrorHandling();
 builder.AddOptions();
 builder.AddPersistence();
 builder.AddServices();
+builder.AddObservability();
 builder.Services.AddTinyLinkRateLimiting(builder.Configuration);
 
 var app = builder.Build();
