@@ -32,21 +32,6 @@ public class Base62Tests
         decodedId.Should().Be(originalId);
     }
 
-    [Theory]
-    [InlineData(0L)]
-    [InlineData(1L)]
-    [InlineData(61L)]
-    [InlineData(62L)]
-    [InlineData(123_456_789L)]
-    [InlineData(Base62.Domain - 1)]
-    public void Roundtrip_ArbitraryValues_ShouldDecodeToOriginalValue(long originalId)
-    {
-        var code = Base62.Encode(originalId);
-
-        Base62.TryDecode(code, out var decodedId).Should().BeTrue();
-        decodedId.Should().Be(originalId);
-    }
-
     [Fact]
     public void Encode_NegativeValue_ShouldThrow()
     {

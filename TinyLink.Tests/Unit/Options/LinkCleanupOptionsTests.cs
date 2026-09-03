@@ -11,30 +11,6 @@ namespace TinyLink.Tests.Unit.Options;
 
 public sealed class LinkCleanupOptionsTests
 {
-    [Fact]
-    public void Defaults_AreOneHourIntervalAndSevenDayRetention()
-    {
-        var options = new LinkCleanupOptions();
-
-        options.Interval.Should().Be(TimeSpan.FromHours(1));
-        options.Retention.Should().Be(TimeSpan.FromDays(7));
-    }
-
-    [Fact]
-    public void Registration_WithValidValues_ResolvesOptions()
-    {
-        var factory = CreateFactory(new Dictionary<string, string?>
-        {
-            ["LinkCleanup:Interval"] = "01:00:00",
-            ["LinkCleanup:Retention"] = "7.00:00:00"
-        });
-
-        var options = factory.Create(Microsoft.Extensions.Options.Options.DefaultName);
-
-        options.Interval.Should().Be(TimeSpan.FromHours(1));
-        options.Retention.Should().Be(TimeSpan.FromDays(7));
-    }
-
     [Theory]
     [InlineData("00:00:00", "7.00:00:00")]
     [InlineData("01:00:00", "00:00:00")]

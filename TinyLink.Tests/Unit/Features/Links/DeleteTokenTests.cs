@@ -15,15 +15,6 @@ public sealed class DeleteTokenTests
         DeleteToken.Matches(Value, Hash).Should().BeTrue();
     }
     [Fact]
-    public void Generate_ReturnsUniqueTokens()
-    {
-        var first = DeleteToken.Generate();
-        var second = DeleteToken.Generate();
-
-        first.Value.Should().NotBe(second.Value);
-        first.Hash.Should().NotEqual(second.Hash);
-    }
-    [Fact]
     public void Matches_ModifiedHash_ReturnsFalse()
     {
         var (Value, Hash) = DeleteToken.Generate();

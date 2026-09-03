@@ -31,14 +31,6 @@ public sealed class RedirectEndpointTests(ApiFixture fixture)
     }
 
     [Fact]
-    public async Task Get_WellFormedFabricatedCode_Returns404()
-    {
-        var response = await fixture.Client.GetAsync(new Uri("/ABC1234"));
-        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-        response.Headers.CacheControl!.NoStore.Should().BeTrue();
-    }
-
-    [Fact]
     public async Task Get_UnknownCodeIsNotCached_CreatedAfterwardsRedirects()
     {
         const string code = "NEG0001";

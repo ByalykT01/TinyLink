@@ -28,9 +28,7 @@ internal sealed class DeletedLinkCleanupWorker(
         }
     }
 
-    protected override async Task ExecuteAsync(
-        CancellationToken ct
-            )
+    protected override async Task ExecuteAsync(CancellationToken ct)
     {
         try
         {
