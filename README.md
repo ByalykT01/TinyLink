@@ -87,7 +87,7 @@ curl -i -X POST https://mdvault.app/api/links \
 ```
 
 ```http
-HTTP/1.1 201 Created
+HTTP/2 201 Created
 Location: /FKVY4mF
 Content-Type: application/json
 {
@@ -106,7 +106,7 @@ curl -i https://mdvault.app/FKVY4mF
 ```
 
 ```http
-HTTP/1.1 302 Found
+HTTP/2 302 Found
 Location: https://example.com/hello
 Cache-Control: no-store
 ```
@@ -119,7 +119,7 @@ curl -i -X DELETE https://mdvault.app/api/links/FKVY4mF \
 ```
 
 ```http
-HTTP/1.1 204 No Content
+HTTP/2 204 No Content
 ```
 
 The link now returns `410 Gone`. (Production redirects plain HTTP to HTTPS, so the `https://` URLs above are required there. Locally, plain `http://api.localhost` is fine.)
@@ -211,7 +211,7 @@ Deletion is idempotent, so repeating it with the right token just returns `204 N
 
 There's no recovery mechanism for a lost token. If it's gone, that link can't be deleted through the API.
 
-The demo above uses HTTP for convenience, but outside local development, deletion tokens should only ever travel over HTTPS.
+Locally the demo runs over plain HTTP for convenience, but outside local development, deletion tokens should only ever travel over HTTPS.
 
 ## Redirect cache
 
@@ -283,7 +283,7 @@ CI builds Release with warnings treated as errors, runs the unit tests, boots th
 
 Production runs at `https://mdvault.app`, behind Cloudflare (TLS, HTTP redirected to HTTPS) and Traefik with Let's Encrypt via Cloudflare's DNS challenge. It shares the server's PostgreSQL instance through a dedicated role and database, and since migrations run at startup, deploys don't need a manual database step.
 
-On every push to `main`, once the full test suite is green, CI streams the tested image straight to the server: `docker save` piped over SSH into `docker load`, tagged as `tinylink:latest`. The server-side Compose file and `.env` belong to the server and are never touched by CI; restarting the service is what picks up the new image.
+On every push to `main`, once the full test suite is green, CI streams the tested image straight to the server: `docker save` piped over SSH into `docker load`, tagged as `tinylink:latest`, then restarts the service (`docker compose up -d`, which recreates only what changed). The server-side Compose file and `.env` belong to the server and are never touched by CI.
 
 Setting up a new server takes three steps:
 
@@ -332,7 +332,7 @@ This permanently deletes the local database volume, so don't run it if you care 
 
 **The VPS is still running the old image after a push.**
 
-The image only ships on green `main` builds. Check the Actions run first, then on the server confirm the image actually arrived (`docker images tinylink`) and restart the service (`docker compose up -d`).
+The image ships and the service restarts only on green `main` builds. Check the Actions run first; if the image arrived (`docker images tinylink`) but the old container is still up, restart it by hand (`docker compose up -d` on the server) and check the deploy step's log.
 
 **HTTPS fails, or the browser complains about the certificate.**
 
