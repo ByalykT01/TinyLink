@@ -19,6 +19,7 @@ internal static class CreateLink
                 LinkResolver resolver,
                 ShortCodeAllocator codes,
                 TimeProvider clock,
+                ILoggerFactory loggerFactory,
                 CancellationToken ct)
     {
         var now = clock.GetUtcNow();
@@ -26,41 +27,61 @@ internal static class CreateLink
 
         var requestedExpiry = request.ExpiresAt?.ToUniversalTime();
 
-        if (requestedExpiry is { } expiry && expiry <= now)
-        {
-            errors["expiresAt"] = ["Must be in the future."];
-        }
-
         var urlInput = new UrlInput(request.Url);
 
-        ValidationResult urlResult = await urlPolicy.ValidateAsync(urlInput, ct);
-
-        if (!urlResult.IsValid)
+        bool valid;
+        using (var validateActivity = LinkTelemetry.Source.StartActivity("links.validate"))
         {
-            errors["url"] = [.. urlResult.Errors.Select(e => e.ErrorMessage)];
+            if (requestedExpiry is { } expiry && expiry <= now)
+            {
+                errors["expiresAt"] = ["Must be in the future."];
+            }
+
+            ValidationResult urlResult = await urlPolicy.ValidateAsync(urlInput, ct);
+
+            if (!urlResult.IsValid)
+            {
+                errors["url"] = [.. urlResult.Errors.Select(e => e.ErrorMessage)];
+            }
+
+            valid = errors.Count == 0;
+            validateActivity?.SetTag("validation.failed", !valid);
         }
 
-        if (errors.Count > 0)
+        if (!valid)
             return TypedResults.ValidationProblem(errors);
 
         var expirationTime = requestedExpiry ?? now.Add(_defaultLifetime);
 
-        var (id, code) = await codes.NextAsync(ct);
+        long id;
+        string code;
+        using (var allocateActivity = LinkTelemetry.Source.StartActivity("links.allocate"))
+        {
+            (id, code) = await codes.NextAsync(ct);
+        }
 
         var (deleteTokenValue, deleteTokenHash) = DeleteToken.Generate();
 
-        dbContext.Links.Add(new Link
+        using (var persistActivity = LinkTelemetry.Source.StartActivity("links.persist"))
         {
-            Id = id,
-            ShortCode = code,
-            TargetUrl = urlInput.Parsed!,
-            CreatedAt = now,
-            ExpiresAt = expirationTime,
-            DeleteTokenHash = deleteTokenHash
-        });
+            dbContext.Links.Add(new Link
+            {
+                Id = id,
+                ShortCode = code,
+                TargetUrl = urlInput.Parsed!,
+                CreatedAt = now,
+                ExpiresAt = expirationTime,
+                DeleteTokenHash = deleteTokenHash
+            });
 
-        await dbContext.SaveChangesAsync(ct);
+            await dbContext.SaveChangesAsync(ct);
+        }
+
         await resolver.InvalidateAsync(code, ct);
+
+        LinkLog.Created(
+            loggerFactory.CreateLogger("TinyLink.Api.Features.Links"),
+            code);
 
         return TypedResults.Created($"/{code}", new Response(code, expirationTime, deleteTokenValue));
     }

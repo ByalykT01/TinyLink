@@ -39,6 +39,7 @@ dotnet_diagnostic.CA1812.severity = none
 
 # Logging performance: enforce source-generated LoggerMessage (see Phase 7)
 dotnet_diagnostic.CA1848.severity = warning
+dotnet_diagnostic.CA1873.severity = none   # CreateLogger is a cached lookup; inline factory calls stay compact
 
 # Naming: private fields _camelCase
 dotnet_naming_rule.private_fields_underscore.severity = error

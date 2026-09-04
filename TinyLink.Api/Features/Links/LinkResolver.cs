@@ -22,11 +22,14 @@ public sealed class LinkResolver(
             CancellationToken ct)
     {
         var key = $"{_cacheKeyPrefix}{code}";
+        using var resolveActivity = LinkTelemetry.Source.StartActivity("links.resolve");
         var resolution = await cache.GetOrCreateAsync(
             key,
             (Factory: dbContextFactory, Code: code),
             static async (state, token) =>
             {
+                using var dbActivity = LinkTelemetry.Source.StartActivity("links.resolve.db");
+
                 await using var database = await state.Factory.CreateDbContextAsync(token);
 
                 var link = await database.Links

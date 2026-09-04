@@ -96,6 +96,7 @@ jobs:
           ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
           docker tag tinylink:dev tinylink:latest
           docker save tinylink:latest | ssh "$HOST" docker load
+          ssh "$HOST" 'cd ~/tinylink && docker compose up -d'
 
       - name: Compose down (always)
         if: always()
