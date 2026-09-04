@@ -83,6 +83,20 @@ jobs:
       - name: Run integration tests
         run: dotnet test TinyLink.slnx --configuration Release --no-build --filter "FullyQualifiedName~Integration"
 
+      - name: Setup deploy SSH key
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+
+      - name: Transfer image to VPS
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          HOST="${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}"
+          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
+          docker tag tinylink:dev tinylink:latest
+          docker save tinylink:latest | ssh "$HOST" docker load
+
       - name: Compose down (always)
         if: always()
         run: docker compose down -v
