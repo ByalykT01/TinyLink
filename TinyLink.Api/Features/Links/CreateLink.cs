@@ -28,8 +28,6 @@ internal static class CreateLink
         var requestedExpiry = request.ExpiresAt?.ToUniversalTime();
 
         var urlInput = new UrlInput(request.Url);
-
-        bool valid;
         using (var validateActivity = LinkTelemetry.Source.StartActivity("links.validate"))
         {
             if (requestedExpiry is { } expiry && expiry <= now)
@@ -44,11 +42,10 @@ internal static class CreateLink
                 errors["url"] = [.. urlResult.Errors.Select(e => e.ErrorMessage)];
             }
 
-            valid = errors.Count == 0;
-            validateActivity?.SetTag("validation.failed", !valid);
+            validateActivity?.SetTag("validation.failed", errors.Count > 0);
         }
 
-        if (!valid)
+        if (errors.Count > 0)
             return TypedResults.ValidationProblem(errors);
 
         var expirationTime = requestedExpiry ?? now.Add(_defaultLifetime);

@@ -18,8 +18,7 @@ internal static class DeleteLink
             CancellationToken ct
             )
     {
-        bool authorized;
-        long linkId;
+        long? linkId;
         using (var authorizeActivity = LinkTelemetry.Source.StartActivity("links.authorize"))
         {
             if (!AuthenticationHeaderValue.TryParse(
@@ -31,49 +30,35 @@ internal static class DeleteLink
                             StringComparison.OrdinalIgnoreCase) ||
                         string.IsNullOrWhiteSpace(credentials.Parameter))
             {
-                authorized = false;
-                linkId = 0;
+                authorizeActivity?.SetTag("auth.succeeded", false);
+                return TypedResults.NotFound();
             }
-            else
+
+            var foundEntry = await dbContext.Links
+                .Where(l => l.ShortCode == code)
+                .Select(l => new
+                {
+                    l.Id,
+                    l.DeleteTokenHash,
+                    l.DeletedAt,
+                }).SingleOrDefaultAsync(ct);
+
+            if (foundEntry?.DeleteTokenHash is not { } expectedHash ||
+                    !DeleteToken.Matches(credentials.Parameter, expectedHash))
             {
-                var foundEntry = await dbContext.Links
-                    .Where(l => l.ShortCode == code)
-                    .Select(l => new
-                    {
-                        l.Id,
-                        l.DeleteTokenHash,
-                        l.DeletedAt,
-                    }).SingleOrDefaultAsync(ct);
-
-                if (foundEntry?.DeleteTokenHash is { } expectedHash &&
-                        DeleteToken.Matches(credentials.Parameter, expectedHash))
-                {
-                    authorized = true;
-                    linkId = foundEntry.Id;
-                }
-                else
-                {
-                    authorized = false;
-                    linkId = 0;
-                }
+                authorizeActivity?.SetTag("auth.succeeded", false);
+                return TypedResults.NotFound();
             }
 
-            authorizeActivity?.SetTag("auth.succeeded", authorized);
-        }
-
-        if (!authorized)
-        {
-            return TypedResults.NotFound();
+            authorizeActivity?.SetTag("auth.succeeded", true);
+            linkId = foundEntry.Id;
         }
 
         var now = clock.GetUtcNow();
 
-        using (var deleteActivity = LinkTelemetry.Source.StartActivity("links.soft-delete"))
-        {
-            await dbContext.Links
-                .Where(l => l.Id == linkId && l.DeletedAt == null)
-                .ExecuteUpdateAsync(s => s.SetProperty(l => l.DeletedAt, now), ct);
-        }
+        await dbContext.Links
+            .Where(l => l.Id == linkId.Value && l.DeletedAt == null)
+            .ExecuteUpdateAsync(s => s.SetProperty(l => l.DeletedAt, now), ct);
 
         await resolver.InvalidateAsync(code, ct);
 

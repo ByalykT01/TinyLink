@@ -31,6 +31,7 @@ public static class ObservabilityExtensions
                                 })
                         .AddHttpClientInstrumentation()
                         .AddNpgsql()
+                        .AddEntityFrameworkCoreInstrumentation()
                         .AddSource("TinyLink.Api")
                         .AddOtlpExporter();
                     })
