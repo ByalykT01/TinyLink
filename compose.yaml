@@ -13,7 +13,7 @@ services:
       Database__Host: postgres
       Database__Port: "5432"
       ForwardedHeaders__KnownNetworks__0: "172.16.0.0/12"
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel:4318"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel:4317"
     networks:
       - backend
       - traefik
