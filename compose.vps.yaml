@@ -1,0 +1,39 @@
+# Production compose for the VPS. This file is a template: copy it to
+# ~/tinylink/compose.yaml on the server — the server copy is the boss,
+# CI only delivers the tinylink:latest image and never touches this file.
+# The server already runs Traefik on the external "proxy" network with a
+# letsencrypt certresolver (same shape as heartmon), and a shared Postgres
+# in the "db" container. TinyLink uses its own tinylink role + database
+# on that server; no second Postgres is started here.
+
+services:
+  tinylink:
+    image: tinylink:latest
+    pull_policy: never
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      ForwardedHeaders__KnownNetworks__0: "172.16.0.0/12"
+    networks:
+      - proxy
+      - shared-db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 10s
+      retries: 3
+      start_period: 30s
+      timeout: 5s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.tinylink.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.tinylink.tls.certresolver=letsencrypt"
+      - "traefik.http.services.tinylink.loadbalancer.server.port=8080"
+
+networks:
+  proxy:
+    external: true
+  shared-db:
+    name: forgejo_forgejo
+    external: true
