@@ -1,20 +1,84 @@
 # TinyLink
 
-A URL shortener whose codes come from a keyed Feistel permutation of a database
-sequence. Collisions are impossible by construction, and a code reveals neither
-how many links exist nor the order in which they were created.
+Shorten URLs into 7-character codes that reveal nothing about your database. Collision-free by construction: a keyed cipher permutes a PostgreSQL sequence, so there are no uniqueness retries and no enumerable IDs.
 
-Built with .NET 10, ASP.NET Core minimal APIs, EF Core and PostgreSQL.
+Built with .NET 10, ASP.NET Core minimal APIs, EF Core and PostgreSQL. Live in production at `https://mdvault.app`; runs locally with one command.
 
-Status: working prototype. Links can be created, resolved and deleted. Deleted
-and expired links are permanently removed by a background worker.
+[![CI](https://github.com/ByalykT01/TinyLink/actions/workflows/ci.yml/badge.svg)](https://github.com/ByalykT01/TinyLink/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)](global.json)
+
+## Contents
+
+- [Features](#features)
+- [Architecture](#architecture)
+- [Quickstart](#quickstart)
+- [Demo](#demo)
+- [How the short codes work](#how-the-short-codes-work)
+- [Configuration](#configuration)
+- [API](#api)
+- [Deletion tokens](#deletion-tokens)
+- [Redirect cache](#redirect-cache)
+- [Design notes](#design-notes)
+- [Observability](#observability)
+- [Tests](#tests)
+- [Deployment](#deployment)
+- [Troubleshooting](#troubleshooting)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [License](#license)
+
+## Features
+
+| Area | Behavior |
+| --- | --- |
+| Shorten | `POST /api/links` returns `201` with code, expiry and deletion token |
+| Redirect | `GET /{code}` returns `302` (`no-store`); `410` for expired or deleted links |
+| Delete | Bearer-token deletion, idempotent; only the token's SHA-256 hash is stored |
+| Collision-free codes | Feistel-permuted sequence: no retry loops, no guessable IDs |
+| Expiry and cleanup | 7-day default expiry; a background worker purges deleted/expired rows after a 7-day retention |
+| Rate limiting | Token bucket per client IP, IPv6 `/64`-aware, `429` with `Retry-After` |
+| Cached redirects | `HybridCache` with 30-second TTL and immediate negative-cache eviction |
+| Migrations on boot | EF Core applies pending migrations at startup |
+
+## Architecture
+
+```mermaid
+flowchart LR
+    Client --> Traefik
+    Traefik --> API["TinyLink API"]
+    API --> PG[("PostgreSQL")]
+    API -.-> OTLP["OTLP collector"]
+```
+
+Traefik terminates routing (and TLS in production); the API is stateless, so multiple replicas can run behind it. PostgreSQL is the source of truth for links, codes and hashes.
+
+## Quickstart
+
+You need Docker Engine with Compose v2. To build or test outside Docker, install the .NET SDK pinned in `global.json` (`10.0.110`); the key bootstrap script needs `openssl`.
+
+```bash
+git clone https://github.com/ByalykT01/TinyLink.git
+cd TinyLink
+cp .env.example .env
+./scripts/set-secret.sh
+docker compose up --build
+```
+
+The bootstrap script writes `ShortCodes__Key` into `.env`. Database migrations run when the API starts. Once the containers report healthy, the [Demo](#demo) commands work as written.
+
+Ports used locally: `80` and `8080` (Traefik), `5555` (PostgreSQL). In the Development environment, the Scalar API reference is served at `/scalar`.
 
 ## Demo
+
+The examples target production, so no local setup is needed. To run them
+against a local stack instead, substitute `http://api.localhost` for
+`https://mdvault.app` (see [Quickstart](#quickstart)).
 
 Create a link:
 
 ```bash
-curl -i -X POST http://api.localhost/api/links \
+curl -i -X POST https://mdvault.app/api/links \
   -H 'Content-Type: application/json' \
   -d '{"url":"https://example.com/hello"}'
 ```
@@ -35,7 +99,7 @@ Save the deletion token. It is returned only when the link is created.
 Open the short link:
 
 ```bash
-curl -i http://api.localhost/FKVY4mF
+curl -i https://mdvault.app/FKVY4mF
 ```
 
 ```http
@@ -47,7 +111,7 @@ Cache-Control: no-store
 Delete it:
 
 ```bash
-curl -i -X DELETE http://api.localhost/api/links/FKVY4mF \
+curl -i -X DELETE https://mdvault.app/api/links/FKVY4mF \
   -H 'Authorization: Bearer LX4Yp8M6hR3qK1vN9sT2wB7cD0fG5jUeA6iO4zPqW'
 ```
 
@@ -55,7 +119,30 @@ curl -i -X DELETE http://api.localhost/api/links/FKVY4mF \
 HTTP/1.1 204 No Content
 ```
 
-The same short link now returns `410 Gone`.
+The same short link now returns `410 Gone`. (Production redirects plain HTTP
+to HTTPS, so the `https://` URLs above are required there; locally, plain
+`http://api.localhost` works.)
+
+## Routing
+
+Traefik fronts the stack and discovers services through Docker labels. The API
+does not publish its container port directly and is available through `http://api.localhost`. The Traefik dashboard is available at `http://traefik.localhost` (or directly at `http://localhost:8080/dashboard/`).
+
+Browsers and most system resolvers direct domains under `.localhost` to
+`127.0.0.1`. If yours does not, add `api.localhost` and `traefik.localhost` to
+`/etc/hosts`.
+
+Because the API has no fixed host port, several instances can run behind Traefik:
+
+```bash
+docker compose up -d --scale tinylink=3
+```
+
+Traefik distributes requests between them.
+
+The included dashboard and plain HTTP configuration are intended for local
+development. A public deployment should use HTTPS and should not expose the
+Traefik dashboard without authentication.
 
 ## How the short codes work
 
@@ -81,33 +168,6 @@ they fit. See `Cipher.cs` for the implementation.
 This is not a standardized format-preserving encryption construction. NIST FF1
 and FF3-1 are the appropriate choices where a certified construction is
 required.
-
-## Prerequisites
-
-Docker Engine and Docker Compose v2 are required to run the stack. The
-integration tests also require a working Docker daemon.
-
-To build or test outside Docker, install the .NET SDK version pinned in
-`global.json` (`10.0.110`). The key bootstrap script requires `openssl`.
-
-Ports 80 and 8080 for Traefik and 5555 for PostgreSQL must be available.
-
-## Quickstart
-
-```bash
-git clone https://github.com/ByalykT01/TinyLink.git
-cd TinyLink
-cp .env.example .env
-./scripts/set-secret.sh
-docker compose up --build
-```
-
-The bootstrap script writes `ShortCodes__Key` into `.env`.
-
-Database migrations are applied when the API starts. Once the containers report
-healthy, the [Demo](#demo) commands should work as written.
-
-In the Development environment, the Scalar API reference is available at `/scalar`.
 
 ## Routing
 
@@ -165,7 +225,9 @@ Docker Compose.
 | `LinkCleanup__Interval` | no | `1h` | Background cleanup run interval |
 | `LinkCleanup__Retention` | no | `7d` | Age after which soft-deleted/expired links are removed |
 | `ForwardedHeaders__KnownNetworks__0` | no | — | CIDR range of trusted proxies (e.g., `172.16.0.0/12`) |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | no | — | OpenTelemetry collector endpoint (e.g., `http://otel:4318`) |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | no | — | OpenTelemetry collector endpoint (e.g., `http://otel:4317`; the app exports over gRPC by default) |
+
+Standard `OTEL_EXPORTER_OTLP_*` variables (headers, timeouts) are honored as well.
 
 The short-code key and database password are secrets. The development values
 from the repository should not be used in a public deployment.
@@ -250,7 +312,7 @@ Timestamps are stored as PostgreSQL `timestamptz` values and read back as UTC.
 Npgsql rejects non-UTC `DateTimeOffset` values, so creation normalizes
 timestamps before storing them.
 
-Rate limiting partitions IPv6 clients by `/64` rather than by complete address.
+Rate limiting partitions IPv6 clients by `/64`.
 A subscriber commonly controls an entire `/64` and could otherwise avoid limits
 by cycling through addresses.
 
@@ -263,14 +325,17 @@ generating values that cannot be represented by a seven-character code.
 
 ## Observability
 
-OpenTelemetry tracing and metrics are built in. Configure `OTEL_EXPORTER_OTLP_ENDPOINT` to send data to a collector (e.g., `http://otel:4318` in the Compose stack). The default configuration instruments:
+OpenTelemetry tracing, metrics and logs are wired in `Program.cs`. Configure `OTEL_EXPORTER_OTLP_ENDPOINT` to send data to a collector (e.g., `http://otel:4317` in the Compose stack; the app exports over gRPC by default). The service name comes from `OTEL_SERVICE_NAME` and defaults to `TinyLink.Api`. The default configuration instruments:
 
 - ASP.NET Core requests (excluding `/healthz`)
 - Outgoing HTTP client calls
 - Npgsql database commands
+- EF Core operations (without SQL text, so URLs never land in spans)
 - Custom `TinyLink.Api` activity source
+- Runtime metrics (GC, thread pool, CPU)
+- Application logs (formatted messages with scopes, trace-correlated)
 
-Traefik is also configured to export traces and metrics to the same OTLP endpoint.
+Without a configured endpoint, exporters fail silently and requests are unaffected. Traefik is also configured to export traces and metrics to the same OTLP endpoint.
 
 ## Tests
 
@@ -278,17 +343,51 @@ Traefik is also configured to export traces and metrics to the same OTLP endpoin
 dotnet test
 ```
 
-Unit tests cover Base62 encoding, the Feistel permutation, URL validation and
-deletion-token handling.
+Unit tests run without Docker:
 
-Integration tests use `WebApplicationFactory` and a real PostgreSQL 17
-container provided by Testcontainers. They cover link creation, redirects,
-expiration, deletion, cache invalidation, validation errors and rate limiting.
+```bash
+dotnet test --filter "FullyQualifiedName!~Integration"
+```
 
-No locally installed PostgreSQL server is required, but Docker must be running.
+Integration tests need Docker (Testcontainers provides a real PostgreSQL 17 container):
 
-CI runs the same test suite on every push. Compiler and analyzer warnings are
-treated as errors under `AnalysisMode=All`.
+```bash
+dotnet test --filter "FullyQualifiedName~Integration"
+```
+
+Unit tests cover Base62 encoding, the Feistel permutation, URL validation,
+deletion-token handling, option validation and exception classification.
+Integration tests cover link creation, redirects, expiration, deletion, cache
+invalidation, validation errors, rate limiting and background cleanup.
+
+Load scenarios live in `k6/` (run with `k6 run -e BASE_URL=http://api.localhost k6/<scenario>.js`).
+
+CI builds Release with warnings as errors, runs unit tests, boots the Compose
+stack behind health gates, runs integration tests, and (on pushes to `main`)
+ships the tested image to the production server. See [Deployment](#deployment).
+
+## Deployment
+
+Production runs at `https://mdvault.app` behind Cloudflare (TLS, HTTP redirected
+to HTTPS) and Traefik with Let's Encrypt (Cloudflare DNS challenge). The app
+shares the server's PostgreSQL instance using a dedicated role and database;
+migrations run at startup, so deploys need no manual database step.
+
+On every push to `main`, after the full test suite passes, CI streams the
+tested image to the server (`docker save` piped through SSH into `docker load`
+as `tinylink:latest`). The server-side Compose file and `.env` are owned by the
+server and never overwritten by CI; restarting the service picks up the new
+image.
+
+Setting up a new server takes three steps:
+
+1. Point a DNS A record at the server. The domain must live in Cloudflare, or
+   Let's Encrypt issuance fails (check `docker logs traefik` for ACME errors).
+2. Create the service directory with a Compose file joining the Traefik network
+   and a `.env` holding `DOMAIN`, the database credentials and a one-time
+   `ShortCodes__Key` (`openssl rand -base64 32`). See `compose.vps.yaml` and
+   `.env.vps.example` for templates.
+3. Start it with `docker compose up -d` and verify `GET /healthz` returns `200`.
 
 ## Troubleshooting
 
@@ -347,19 +446,36 @@ docker compose up --build
 
 This permanently removes the local database volume.
 
-## Roadmap
+**The VPS still runs the old image after a push.**
 
-A background worker permanently removes soft-deleted and expired links on a configurable schedule (default: every hour, retention: 7 days).
+The transfer runs only on green `main` builds. Check the Actions run, then on
+the server confirm the image arrived (`docker images tinylink`) and restart the
+service (`docker compose up -d`).
+
+**HTTPS fails or the browser warns about the certificate.**
+
+The domain needs a DNS A record pointing at the server, and its zone must be
+managed by Cloudflare: Traefik issues certificates through Cloudflare DNS
+challenge. Check `docker logs traefik` for ACME errors naming your domain.
+
+## Roadmap
 
 Possible later additions include:
 
-- An authenticated endpoint for changing a link’s target or expiration.
+- An authenticated endpoint for changing a link's target or expiration.
 
 - Coordination of cache invalidation between API replicas.
 
 - Custom short-code aliases.
 
 - Stronger administration through API keys or user accounts.
+
+## Contributing
+
+1. Fork the repo and create a branch: `git checkout -b feature/my-change`.
+2. Build Release (warnings are errors): `dotnet build -c Release`.
+3. Run the tests: `dotnet test` (integration tests need a running Docker daemon).
+4. Open a pull request against `main` with a description of the change. CI must be green.
 
 ## License
 
