@@ -11,22 +11,42 @@ public static class RedirectToTarget
     /// Test with <c>curl -i</c> and no <c>-L</c>.
     /// </remarks>
     /// <param name="code">Seven-character Base62 short code.</param>
-    public static async Task<Results<RedirectHttpResult, NotFound, StatusCodeHttpResult>> Handle(
+    public static async Task<Results<RedirectHttpResult, NotFound, StatusCodeHttpResult, ContentHttpResult>> Handle(
                 string code,
                 HttpContext http,
                 LinkResolver resolver,
                 TimeProvider clock,
+                IConfiguration configuration,
                 CancellationToken ct)
     {
 
         var link = await resolver.ResolveAsync(code, ct);
 
         if (link.TargetUrl is null || !link.Exists)
-            return NotFound404(http);
+        {
+            http.Response.Headers.CacheControl = "no-store";
+            if (WantsHtml(http))
+            {
+                return TypedResults.Content(
+                    StatusPages.NotFound(FrontendOrigin(configuration)),
+                    "text/html",
+                    statusCode: StatusCodes.Status404NotFound);
+            }
+
+            return TypedResults.NotFound();
+        }
 
         if (link.DeletedAt is not null || link.ExpiresAt <= clock.GetUtcNow())
         {
             http.Response.Headers.CacheControl = "public, max-age=86400";
+            if (WantsHtml(http))
+            {
+                return TypedResults.Content(
+                    StatusPages.Gone(FrontendOrigin(configuration)),
+                    "text/html",
+                    statusCode: StatusCodes.Status410Gone);
+            }
+
             return TypedResults.StatusCode(StatusCodes.Status410Gone);
         }
 
@@ -37,10 +57,23 @@ public static class RedirectToTarget
             preserveMethod: false);
     }
 
-    private static NotFound NotFound404(HttpContext http)
-    {
-        http.Response.Headers.CacheControl = "no-store";
-        return TypedResults.NotFound();
-    }
-}
+    /// <summary>
+    /// Browser navigations send <c>Accept: text/html</c>; machines (curl,
+    /// fetch) send <c>*/*</c> or JSON. Only the former gets a rendered page.
+    /// </summary>
+    private static bool WantsHtml(HttpContext http) =>
+        http.Request.Headers.Accept.Any(value =>
+            value is not null &&
+            value.Contains("text/html", StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>
+    /// First configured frontend origin, reused from the CORS setting so the
+    /// dead-link page can point back at the app. Null when unconfigured.
+    /// </summary>
+    private static string? FrontendOrigin(IConfiguration configuration) =>
+        configuration.GetSection("Frontend:Origins").Get<string[]>() switch
+        {
+            { Length: > 0 } origins => origins[0],
+            _ => null
+        };
+}

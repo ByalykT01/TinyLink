@@ -81,5 +81,78 @@ public sealed class RedirectEndpointTests(ApiFixture fixture)
     string ShortCode,
     DateTimeOffset? ExpiresAt);
 
+    [Fact]
+    public async Task Get_ExpiredCodeWithBrowserAccept_Returns410HtmlPage()
+    {
+        var created = await fixture.Client.PostAsJsonAsync(
+            "/api/links",
+            new { url = "https://example.com/expired-html" });
+        created.StatusCode.Should().Be(HttpStatusCode.Created);
+        var body = await created.Content.ReadFromJsonAsync<CreatedLink>();
+        body.Should().NotBeNull();
+        await fixture.ExecuteDbContextAsync(async dbContext =>
+        {
+            await dbContext.Links
+                .Where(link => link.ShortCode == body!.ShortCode)
+                .ExecuteUpdateAsync(update => update
+                    .SetProperty(
+                        link => link.ExpiresAt,
+                        DateTimeOffset.UtcNow.AddMinutes(-1)));
+        });
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            new Uri($"/{body!.ShortCode}", UriKind.Relative));
+        request.Headers.Accept.ParseAdd("text/html");
+        var response = await fixture.Client.SendAsync(request);
+        response.StatusCode.Should().Be(HttpStatusCode.Gone);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("text/html");
+        response.Headers.CacheControl!.Public.Should().BeTrue();
+        var page = await response.Content.ReadAsStringAsync();
+        page.Should().Contain("This link is gone.");
+    }
+
+    [Fact]
+    public async Task Get_UnknownCodeWithBrowserAccept_Returns404HtmlPage()
+    {
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            new Uri("/zzzzzzz", UriKind.Relative));
+        request.Headers.Accept.ParseAdd("text/html");
+        var response = await fixture.Client.SendAsync(request);
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("text/html");
+        response.Headers.CacheControl!.NoStore.Should().BeTrue();
+        var page = await response.Content.ReadAsStringAsync();
+        page.Should().Contain("No link with this code.");
+    }
+
+    [Fact]
+    public async Task Get_ExpiredCodeWithoutHtmlAccept_ReturnsProblemJsonInsteadOfPage()
+    {
+        var created = await fixture.Client.PostAsJsonAsync(
+            "/api/links",
+            new { url = "https://example.com/expired-plain" });
+        created.StatusCode.Should().Be(HttpStatusCode.Created);
+        var body = await created.Content.ReadFromJsonAsync<CreatedLink>();
+        body.Should().NotBeNull();
+        await fixture.ExecuteDbContextAsync(async dbContext =>
+        {
+            await dbContext.Links
+                .Where(link => link.ShortCode == body!.ShortCode)
+                .ExecuteUpdateAsync(update => update
+                    .SetProperty(
+                        link => link.ExpiresAt,
+                        DateTimeOffset.UtcNow.AddMinutes(-1)));
+        });
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            new Uri($"/{body!.ShortCode}", UriKind.Relative));
+        request.Headers.Accept.ParseAdd("*/*");
+        var response = await fixture.Client.SendAsync(request);
+        response.StatusCode.Should().Be(HttpStatusCode.Gone);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
+        var payload = await response.Content.ReadAsStringAsync();
+        payload.Should().NotContain("This link is gone.");
+    }
 }
 
