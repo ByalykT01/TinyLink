@@ -1,0 +1,330 @@
+/* v3 components: unboxed sections separated by hairlines, rounded inputs and
+   buttons, small gray icons inline with text. No shadows, no transitions. */
+
+/* ---- shell ---- */
+
+.shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.shell-inner {
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: var(--space-8) 20px var(--space-12);
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.masthead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--hairline);
+  margin-bottom: var(--space-8);
+}
+
+.wordmark {
+  font-weight: 700;
+  font-size: 20px;
+  line-height: 1.3;
+}
+
+.status {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.footer {
+  margin-top: var(--space-12);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ---- sections (dividers, not panels) ---- */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.section + .section {
+  border-top: 1px solid var(--hairline);
+  margin-top: var(--space-8);
+  padding-top: var(--space-8);
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.4;
+  margin: 0 0 var(--space-4);
+}
+
+.section p {
+  margin-bottom: var(--space-4);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  font-size: 13px;
+}
+
+/* ---- fields ---- */
+
+.field-label {
+  display: block;
+  font-size: 14px;
+  margin-bottom: var(--space-2);
+}
+
+.field-input {
+  width: 100%;
+  border: 1px solid var(--field-border);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
+  padding: 10px var(--space-3);
+}
+
+.field-input::placeholder {
+  color: var(--muted);
+}
+
+.field-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-top: var(--space-2);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.field-row {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.field-row .field-grow {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.field-row .field-code {
+  flex: 0 0 140px;
+}
+
+@media (max-width: 480px) {
+  .field-row {
+    flex-direction: column;
+  }
+
+  .field-row .field-code {
+    flex-basis: auto;
+  }
+}
+
+/* Errors: small red text directly under the field, plain sentence. */
+.field-error {
+  margin: var(--space-2) 0 0;
+  font-size: 13px;
+  color: var(--danger);
+}
+
+/* ---- data lines ---- */
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+
+.mono.small {
+  font-size: 13px;
+}
+
+.result-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+}
+
+.result-line .result-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.result-item + .result-item {
+  margin-top: var(--space-4);
+}
+
+.result-label {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0 0 var(--space-1);
+}
+
+/* ---- buttons ---- */
+
+.btn-primary {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--accent-ink);
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 10px 20px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: var(--accent-ink);
+  text-decoration: none;
+}
+
+.btn-primary:disabled {
+  background: var(--disabled-bg);
+  border-color: var(--disabled-bg);
+  color: var(--disabled-ink);
+  cursor: not-allowed;
+}
+
+.btn-primary svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Destructive action: red outline, red text; fills red on hover. */
+.btn-danger {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--danger);
+  background: transparent;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  padding: 9px var(--space-4);
+  cursor: pointer;
+}
+
+.btn-danger:hover {
+  background: var(--danger);
+  color: #ffffff;
+}
+
+.btn-danger:disabled {
+  color: var(--disabled-ink);
+  border-color: var(--hairline);
+  background: transparent;
+  cursor: not-allowed;
+}
+
+.btn-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.btn-row-end {
+  justify-content: flex-end;
+}
+
+.btn-row-spread {
+  justify-content: space-between;
+}
+
+/* Plain text button for tertiary actions (Show/Hide, Home). */
+.text-btn {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  padding: var(--space-2) 0;
+  cursor: pointer;
+}
+
+.text-btn:hover {
+  text-decoration: underline;
+}
+
+/* ---- small gray icon button (copy / copied states) ---- */
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 0;
+  border-radius: var(--radius);
+  padding: var(--space-2);
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.icon-btn:hover {
+  color: var(--ink);
+}
+
+.icon-btn svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+.icon-btn.is-copied {
+  color: var(--ink);
+}
+
+/* ---- message text: errors red, everything else small gray ---- */
+
+.error-text {
+  margin: var(--space-4) 0 0;
+  font-size: 13px;
+  color: var(--danger);
+}
+
+.error-list {
+  margin: var(--space-2) 0 0;
+  padding-left: 20px;
+  font-size: 13px;
+  color: var(--danger);
+}
+
+.error-list li {
+  margin-bottom: var(--space-1);
+}
+
+.note {
+  margin: var(--space-4) 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.trace {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
+}
