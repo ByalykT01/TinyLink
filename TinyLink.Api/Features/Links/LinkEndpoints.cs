@@ -14,6 +14,12 @@ public static class LinkEndpoints
         links.MapDelete("/{code:length(7)}", DeleteLink.Handle)
             .WithTags("Delete");
 
+        links.MapGet("/{code:length(7)}", GetLinkStatus.Handle)
+            .WithSummary("Report whether a short code is active, gone, or unknown.")
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status410Gone);
+
         app.MapGet("/{code:length(7)}", RedirectToTarget.Handle)
             .WithTags("Redirect")
             .WithSummary("Resolve a short code and redirect to its target URL.")
@@ -22,7 +28,8 @@ public static class LinkEndpoints
                 + "so you will see the target's response or a CORS error instead of the 302. "
                 + "Test with `curl -i` and no -L.")
             .Produces(StatusCodes.Status302Found)
-            .Produces(StatusCodes.Status410Gone);
+            .Produces(StatusCodes.Status410Gone)
+            .Produces<string>(StatusCodes.Status404NotFound, "text/html");
 
 
         return app;
