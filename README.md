@@ -185,8 +185,9 @@ The short-code key and database password are secrets, so don't reuse the values 
 | Method | Route | Result |
 | --- | --- | --- |
 | `POST` | `/api/links` | `201` with the short code, expiry and deletion token; `400` for an invalid target; `429` when rate limited |
-| `GET` | `/{code}` | `302` to the target; `410` if expired or deleted; `404` if unknown |
+| `GET` | `/{code}` | `302` to the target; `410` if expired or deleted; `404` if unknown; browser navigations (`Accept: text/html`) get a small rendered page for the `410`/`404` instead of an empty body |
 | `DELETE` | `/api/links/{code}` | `204` with a valid deletion token; `404` if the code or token is wrong |
+| `GET` | `/api/links/{code}` | `200` with the target and expiry when active; `410` if expired or deleted; `404` if unknown |
 | `GET` | `/healthz` | Reports database connectivity |
 
 Targets must be absolute `http` or `https` URLs, can't contain embedded credentials, and top out at 2,000 characters.

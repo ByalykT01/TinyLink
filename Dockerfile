@@ -6,6 +6,20 @@ RUN apt-get update \
 USER $APP_UID
 EXPOSE 8080
 
+# ---------- Frontend ----------
+# Compiled with no VITE_* values baked in, so the SPA defaults to same-origin
+# API calls (window.location.origin). For a split-origin deploy, override at
+# image build time, e.g.:
+#   docker build --build-arg VITE_API_BASE_URL=https://api.example.com .
+FROM node:22-alpine AS frontend
+WORKDIR /web
+ARG VITE_API_BASE_URL=""
+ARG VITE_REDIRECT_BASE_URL=""
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
 FROM mcr.microsoft.com/dotnet/sdk:10.0-noble AS restore
 WORKDIR /src
 COPY global.json Directory.Build.props Directory.Packages.props .editorconfig ./
@@ -15,6 +29,7 @@ RUN dotnet restore TinyLink.Api/TinyLink.Api.csproj
 FROM restore AS build
 ARG BUILD_CONFIGURATION=Release
 COPY TinyLink.Api/ TinyLink.Api/
+COPY --from=frontend /web/dist TinyLink.Api/wwwroot
 RUN dotnet build TinyLink.Api/TinyLink.Api.csproj -c $BUILD_CONFIGURATION --no-restore
 
 FROM build AS publish

@@ -19,4 +19,6 @@ LICENSE
 **/appsettings.*.Local.json
 # not part of the runtime image
 TinyLink.Tests/
+# rebuilt from source in the frontend stage
+frontend/dist
 

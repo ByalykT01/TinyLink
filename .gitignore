@@ -7,6 +7,10 @@
 .env
 .env.tmp
 
+# Compiled SPA (npm run build output, copied here for local single-origin runs;
+# the Dockerfile rebuilds it from source, so it is never committed).
+TinyLink.Api/wwwroot/
+
 # User-specific files
 *.rsuser
 *.suo
