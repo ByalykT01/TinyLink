@@ -11,7 +11,7 @@ EXPOSE 8080
 # API calls (window.location.origin). For a split-origin deploy, override at
 # image build time, e.g.:
 #   docker build --build-arg VITE_API_BASE_URL=https://api.example.com .
-FROM node:22-alpine AS frontend
+FROM node:26-alpine AS frontend
 WORKDIR /web
 ARG VITE_API_BASE_URL=""
 ARG VITE_REDIRECT_BASE_URL=""
