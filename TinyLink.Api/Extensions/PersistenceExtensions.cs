@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using TinyLink.Api.Data;
 using TinyLink.Api.Options;
 
@@ -8,15 +9,12 @@ public static class PersistenceExtensions
 {
     public static IHostApplicationBuilder AddPersistence(this IHostApplicationBuilder builder)
     {
-        var database = builder.Configuration.GetSection(DatabaseOptions.SectionName).Get<DatabaseOptions>() ??
-                       throw new InvalidOperationException("Database Configuration not found");
-
-        builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
-            options.UseNpgsql(database.ToConnectionString));
+        builder.Services.AddDbContextFactory<ApplicationDbContext>((services, options) =>
+            options.UseNpgsql(services.GetRequiredService<IOptions<DatabaseOptions>>().Value.ToConnectionString));
 
         builder.Services.AddHealthChecks()
             .AddNpgSql(
-                database.ToConnectionString,
+                services => services.GetRequiredService<IOptions<DatabaseOptions>>().Value.ToConnectionString,
                 name: "postgres",
                 timeout: TimeSpan.FromSeconds(3));
 

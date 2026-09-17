@@ -38,7 +38,10 @@ internal sealed class DatabaseExceptionHandler(
     }
     private ProblemDetails? Classify(Exception exception)
     {
-        var root = exception.GetBaseException();
+        // Preserve provider exceptions: their innermost cause can be a socket or I/O error.
+        var root = exception;
+        while (root is not NpgsqlException and not TimeoutException && root.InnerException is { } inner)
+            root = inner;
         if (root is PostgresException pg)
         {
             switch (pg.SqlState)
@@ -65,4 +68,3 @@ internal sealed class DatabaseExceptionHandler(
     private static ProblemDetails Problem(int status, string title, string detail) =>
         new() { Status = status, Title = title, Detail = detail };
 }
-

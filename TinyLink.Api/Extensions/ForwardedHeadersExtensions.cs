@@ -11,14 +11,21 @@ public static class ForwardedHeadersExtensions
             options.ForwardedHeaders =
                 ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
             options.ForwardLimit = 1;
+            var networks = builder.Configuration
+                .GetSection("ForwardedHeaders:KnownNetworks")
+                .Get<string[]>() ?? [];
+
+            // Keep the framework's loopback-only defaults when no proxies are configured.
+            // Empty trust lists would accept forwarded headers from every sender.
+            if (networks.Length == 0)
+                return;
+
 #pragma warning disable ASPDEPR005
             options.KnownNetworks.Clear();
 #pragma warning restore ASPDEPR005
             options.KnownIPNetworks.Clear();
             options.KnownProxies.Clear();
-            foreach (var cidr in builder.Configuration
-                         .GetSection("ForwardedHeaders:KnownNetworks")
-                         .Get<string[]>() ?? [])
+            foreach (var cidr in networks)
             {
                 options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(cidr));
             }
@@ -32,4 +39,3 @@ public static class ForwardedHeadersExtensions
         return app;
     }
 }
-

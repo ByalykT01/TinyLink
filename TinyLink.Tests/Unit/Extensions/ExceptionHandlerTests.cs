@@ -1,4 +1,6 @@
 using FluentAssertions;
+using System.Net.Sockets;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -82,6 +84,32 @@ public sealed class ExceptionHandlerTests
 
         handled.Should().BeTrue();
         httpContext.Response.StatusCode.Should().Be(StatusCodes.Status503ServiceUnavailable);
+    }
+
+    [Fact]
+    public async Task Database_WrappedSocketFailure_Returns503()
+    {
+        var (handler, httpContext) = CreateDatabaseHandler();
+        var exception = new DbUpdateException("Save failed",
+            new NpgsqlException("Connection failed", new SocketException((int)SocketError.ConnectionRefused)));
+
+        var handled = await handler.TryHandleAsync(httpContext, exception, CancellationToken.None);
+
+        handled.Should().BeTrue();
+        httpContext.Response.StatusCode.Should().Be(StatusCodes.Status503ServiceUnavailable);
+    }
+
+    [Fact]
+    public async Task Database_WrappedUniqueViolation_Returns409()
+    {
+        var (handler, httpContext) = CreateDatabaseHandler();
+        var exception = new DbUpdateException("Save failed",
+            new PostgresException("duplicate key", "ERROR", "ERROR", PostgresErrorCodes.UniqueViolation));
+
+        var handled = await handler.TryHandleAsync(httpContext, exception, CancellationToken.None);
+
+        handled.Should().BeTrue();
+        httpContext.Response.StatusCode.Should().Be(StatusCodes.Status409Conflict);
     }
 
     [Fact]
